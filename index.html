@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>자세 할매</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap">
+<style>
+  /* ── 토큰 ───────────────────────────────
+     평소: 차분한 측정 도구 (쿨 그레이 + 수평계 블루)
+     할매: 만화 폭발 (옐로 + 핫핑크 + 굵은 외곽선) */
+  :root{
+    --paper:#EEF1F4;
+    --surface:#FFFFFF;
+    --ink:#16181D;
+    --ink-2:#5B616B;
+    --hair:#DCE1E7;
+    --level:#2F5BEA;
+    --good:#1FA971;
+    --bad:#E5484D;
+    --away:#AEB4BD;
+    --h-yellow:#FFE14D;
+    --h-yellow-2:#FFC800;
+    --h-pink:#FF3D7F;
+    --h-pink-soft:#FFB3CF;
+    --ui:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    --comic:"Black Han Sans","Pretendard Variable",-apple-system,"Apple SD Gothic Neo",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--ui);
+    -webkit-text-size-adjust:100%;font-feature-settings:"tnum" 1}
+  button{font:inherit}
+  :focus-visible{outline:3px solid var(--level);outline-offset:2px}
+
+  /* ── 상단 ── */
+  .top{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 8px;max-width:1240px;margin:0 auto}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.4px}
+  .brand-mark{width:30px;height:30px}
+  .top-note{font-size:13px;color:var(--ink-2)}
+
+  /* ── 레이아웃 ── */
+  .app{display:grid;gap:20px;padding:12px 24px 40px;max-width:1240px;margin:0 auto;grid-template-columns:1fr}
+  @media (min-width:960px){ .app{grid-template-columns:minmax(0,1.4fr) minmax(340px,1fr);align-items:start} }
+  @media (max-width:520px){ .top{padding:16px 16px 4px} .app{padding:10px 16px 32px} }
+
+  /* ── 카메라 ── */
+  .cam{position:relative;aspect-ratio:4/3;border-radius:24px;overflow:hidden;background:#20242B}
+  .cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+  .cam canvas{pointer-events:none}
+  .cam-empty{position:absolute;inset:0;display:grid;place-content:center;gap:14px;text-align:center;padding:28px;color:#C9CED6}
+  .cam-empty svg{width:88px;height:88px;margin:0 auto;opacity:.9}
+  .cam-empty p{margin:0;font-size:15px;line-height:1.6;max-width:30ch}
+  .badge{position:absolute;top:14px;left:14px;display:flex;align-items:center;gap:8px;padding:8px 14px 8px 12px;
+    border-radius:999px;background:rgba(22,24,29,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    color:#fff;font-size:14px;font-weight:700}
+  .badge i{width:9px;height:9px;border-radius:50%;background:var(--away)}
+  .badge.good i{background:var(--good)} .badge.bad i{background:var(--bad)}
+  .cam-edge{position:absolute;inset:0;border-radius:24px;box-shadow:inset 0 0 0 0 var(--bad);transition:box-shadow .2s;pointer-events:none}
+  .cam-edge.on{box-shadow:inset 0 0 0 6px var(--bad)}
+  .toast{position:absolute;left:50%;top:0;transform:translate(-50%,-120%);opacity:0;background:var(--surface);color:var(--ink);
+    padding:10px 16px;border-radius:14px;font-size:15px;font-weight:700;box-shadow:0 6px 24px rgba(22,24,29,.18);
+    transition:transform .3s cubic-bezier(.2,.9,.3,1.2),opacity .2s;max-width:calc(100% - 28px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .toast.show{transform:translate(-50%,66px);opacity:1}
+
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .btn{border:0;border-radius:14px;padding:14px 20px;min-height:52px;font-size:16px;font-weight:700;cursor:pointer;
+    background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 1px var(--hair)}
+  .btn-primary{background:var(--ink);color:#fff;box-shadow:none}
+  .btn-quiet{background:transparent;box-shadow:none;color:var(--ink-2);padding-left:8px;padding-right:8px}
+  .btn:disabled{opacity:.35;cursor:not-allowed}
+  .btn[hidden]{display:none}
+  .help{margin:14px 2px 0;font-size:14px;line-height:1.65;color:var(--ink-2);max-width:62ch}
+  .error{display:none;margin-top:12px;padding:12px 14px;border-radius:12px;background:#FDECEC;color:#9B1C1F;font-size:14px;line-height:1.6}
+  .privacy{display:flex;gap:8px;align-items:flex-start;margin:12px 2px 0;font-size:12.5px;color:var(--ink-2);line-height:1.5}
+
+  /* ── 패널 ── */
+  .panel{background:var(--surface);border-radius:24px;padding:22px}
+  .panel + .panel{margin-top:16px}
+  .panel h2{margin:0 0 4px;font-size:15px;font-weight:700;color:var(--ink-2)}
+
+  /* 수평계: 자세가 흐트러질수록 기포가 가운데에서 벗어남 */
+  .level-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+  .level-state{font-size:26px;font-weight:800;letter-spacing:-.8px}
+  .level-score{font-size:15px;color:var(--ink-2);font-weight:600}
+  .level-score b{font-size:22px;color:var(--ink);font-weight:800}
+  .level{position:relative;height:52px;border-radius:26px;background:var(--paper);overflow:hidden}
+  .level::before,.level::after{content:"";position:absolute;top:10px;bottom:10px;width:2px;background:#C5CCD5;border-radius:1px}
+  .level::before{left:calc(50% - 34px)} .level::after{left:calc(50% + 32px)}
+  .bubble{position:absolute;top:8px;width:36px;height:36px;margin-left:-18px;left:50%;border-radius:50%;
+    background:var(--away);transition:left .45s cubic-bezier(.3,.8,.3,1),background .3s;
+    box-shadow:inset -4px -5px 0 rgba(0,0,0,.08),inset 4px 4px 0 rgba(255,255,255,.45)}
+  .bubble.good{background:var(--good)} .bubble.bad{background:var(--bad)}
+
+  .figures{display:grid;grid-template-columns:repeat(3,1fr);margin-top:20px}
+  .figure{padding:0 14px;border-left:1px solid var(--hair)}
+  .figure:first-child{padding-left:0;border-left:0}
+  .figure b{display:block;font-size:22px;font-weight:800;letter-spacing:-.5px}
+  .figure span{font-size:13px;color:var(--ink-2)}
+  .timeline{display:block;width:100%;height:12px;margin-top:22px;border-radius:6px;background:var(--paper)}
+  .legend{display:flex;gap:14px;margin-top:8px;font-size:12px;color:var(--ink-2)}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
+
+  /* 설정 */
+  details.panel summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;
+    font-size:15px;font-weight:700;color:var(--ink)}
+  details.panel summary::-webkit-details-marker{display:none}
+  details.panel summary::after{content:"";width:9px;height:9px;border-right:2px solid var(--ink-2);border-bottom:2px solid var(--ink-2);
+    transform:rotate(45deg);transition:transform .2s;margin-right:4px}
+  details[open].panel summary::after{transform:rotate(-135deg)}
+  .settings{margin-top:18px;display:grid;gap:20px}
+  .field-label{display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-bottom:8px}
+  .field-label small{font-weight:600;color:var(--level)}
+  .field-note{font-size:12.5px;color:var(--ink-2);margin-top:6px;line-height:1.5}
+  .seg{display:flex;background:var(--paper);border-radius:12px;padding:4px;gap:4px}
+  .seg button{flex:1;border:0;background:transparent;border-radius:9px;padding:10px 6px;font-size:14px;font-weight:600;color:var(--ink-2);cursor:pointer;min-height:42px}
+  .seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(22,24,29,.12)}
+  input[type=range]{width:100%;accent-color:var(--level);height:28px}
+
+  /* 리포트 */
+  .report{display:grid;grid-template-columns:96px 1fr;gap:16px;align-items:center}
+  .report-avatar{width:96px;height:96px;border-radius:50%;background:var(--h-yellow);display:grid;place-items:center;overflow:hidden}
+  .report-avatar svg{width:92px;height:92px;margin-top:10px}
+  .report-quote{font-family:var(--comic);font-size:21px;line-height:1.35;margin:0}
+  .report-list{margin:18px 0 0;padding:0;list-style:none;display:grid;gap:10px}
+  .report-list li{display:flex;justify-content:space-between;font-size:15px;padding-bottom:10px;border-bottom:1px solid var(--hair)}
+  .report-list li b{font-weight:800}
+
+  /* ── 할매 등판 (병맛 구간) ───────────────── */
+  .halmae{position:fixed;inset:0;z-index:50;display:none;place-items:center;overflow:hidden;cursor:pointer;
+    background:
+      radial-gradient(circle at 50% 42%,rgba(255,255,255,.95) 0 9%,rgba(255,255,255,0) 26%),
+      repeating-conic-gradient(from 0deg at 50% 42%,var(--h-yellow) 0 5deg,var(--h-yellow-2) 5deg 10deg)}
+  .halmae.happy{background:
+      radial-gradient(circle at 50% 42%,rgba(255,255,255,.95) 0 9%,rgba(255,255,255,0) 26%),
+      repeating-conic-gradient(from 0deg at 50% 42%,var(--h-pink-soft) 0 5deg,#FF8FB8 5deg 10deg)}
+  .halmae.show{display:grid}
+  .halmae::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.18;
+    background-image:radial-gradient(var(--ink) 1.2px,transparent 1.4px);background-size:9px 9px}
+  .halmae.show.angry .h-stage{animation:shake .5s steps(2) 2}
+  .h-stage{position:relative;display:grid;justify-items:center;gap:6px;width:min(92vw,720px);padding:20px}
+  .h-face{width:min(58vw,330px);height:auto;animation:faceIn .5s cubic-bezier(.2,1.6,.4,1) both}
+  .halmae.angry .h-face{animation:faceIn .5s cubic-bezier(.2,1.6,.4,1) both,jitter .12s linear .5s infinite}
+  .halmae.happy .h-face{animation:faceIn .5s cubic-bezier(.2,1.6,.4,1) both,bob 1s ease-in-out .5s infinite}
+  .h-text{margin:0;text-align:center;font-family:var(--comic);font-weight:400;color:#fff;line-height:1.12;
+    font-size:clamp(34px,7.4vw,74px);letter-spacing:-.5px;transform:rotate(-3deg);
+    -webkit-text-stroke:9px var(--ink);paint-order:stroke fill;text-shadow:7px 7px 0 var(--h-pink);word-break:keep-all}
+  .halmae.happy .h-text{text-shadow:7px 7px 0 var(--h-yellow-2)}
+  .h-text span{display:inline-block;animation:pop .35s cubic-bezier(.2,1.8,.4,1) both}
+  .h-sticker{position:absolute;font-family:var(--comic);color:#fff;-webkit-text-stroke:6px var(--ink);paint-order:stroke fill;
+    font-size:clamp(30px,6vw,56px);animation:pop .35s cubic-bezier(.2,1.8,.4,1) .15s both}
+  .h-bang{top:4%;left:4%;rotate:-14deg;padding:28px 30px;background:var(--h-pink);
+    clip-path:polygon(50% 0,61% 30%,95% 20%,72% 47%,100% 66%,66% 70%,70% 100%,50% 78%,28% 100%,32% 71%,0 66%,28% 47%,6% 20%,39% 30%)}
+  .h-vein{top:6%;right:8%;font-size:clamp(48px,9vw,90px);-webkit-text-stroke:0;animation-delay:.25s}
+  .h-slipper{position:absolute;left:50%;top:40%;font-size:64px;line-height:1;pointer-events:none;opacity:0;animation:slipper 1.25s cubic-bezier(.5,0,.6,1) .45s forwards}
+  .h-hearts{position:absolute;inset:0;pointer-events:none}
+  .h-hearts span{position:absolute;bottom:-60px;font-size:34px;animation:rise 2.6s ease-in forwards}
+  .h-hint{position:absolute;bottom:22px;left:0;right:0;text-align:center;font-size:13px;font-weight:700;color:var(--ink);opacity:.55}
+
+  @keyframes faceIn{0%{transform:scale(0) rotate(-40deg)}100%{transform:scale(1) rotate(0)}}
+  @keyframes jitter{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(-3px,2px) rotate(-1.5deg)}50%{transform:translate(3px,-2px) rotate(1.5deg)}75%{transform:translate(-2px,-1px) rotate(-1deg)}}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-10px) rotate(2deg)}}
+  @keyframes pop{0%{transform:scale(0)}100%{transform:scale(1)}}
+  @keyframes shake{0%{transform:translate(-12px,6px)}50%{transform:translate(12px,-6px)}100%{transform:translate(0,0)}}
+  @keyframes slipper{
+    0%{opacity:1;transform:translate(-50%,-50%) scale(.4) rotate(0)}
+    55%{opacity:1;transform:translate(-50%,-50%) scale(5.2) rotate(560deg)}
+    68%{opacity:1;transform:translate(-50%,-50%) scale(4.8) rotate(575deg)}
+    100%{opacity:0;transform:translate(-50%,80vh) scale(4.8) rotate(600deg)}}
+  @keyframes rise{0%{transform:translateY(0) scale(.6);opacity:1}100%{transform:translateY(-115vh) scale(1.3);opacity:0}}
+
+  @media (prefers-reduced-motion:reduce){
+    .halmae *,.halmae.show .h-stage{animation:none!important}
+    .h-slipper,.h-hearts{display:none}
+    .bubble,.toast{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 30 30" aria-hidden="true">
+      <rect x="1" y="9" width="28" height="12" rx="6" fill="#16181D"/>
+      <circle cx="15" cy="15" r="4" fill="#1FA971"/>
+    </svg>
+    자세 할매
+  </div>
+  <div class="top-note">시제품</div>
+</header>
+
+<main class="app">
+  <section>
+    <div class="cam">
+      <video id="video" playsinline muted autoplay></video>
+      <canvas id="overlay"></canvas>
+      <div class="cam-empty" id="camEmpty">
+        <svg viewBox="0 0 88 88" fill="none" stroke="#C9CED6" stroke-width="3" stroke-linecap="round" aria-hidden="true">
+          <circle cx="44" cy="24" r="11"/><path d="M44 35v24M24 46h40M44 59l-10 20M44 59l10 20"/>
+        </svg>
+        <p>카메라를 켜고, 머리와 양어깨가 화면에 들어오게 두세요. 앞이든 옆이든 괜찮아요.</p>
+      </div>
+      <div class="badge" id="badge"><i></i><span id="badgeText">대기 중</span></div>
+      <div class="cam-edge" id="camEdge"></div>
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="startBtn">카메라 켜기</button>
+      <button class="btn btn-primary" id="calibBtn" hidden>바른 자세 등록하기</button>
+      <button class="btn" id="stopBtn" hidden>끝내고 리포트 보기</button>
+      <button class="btn btn-quiet" id="testBtn">할매 미리 보기</button>
+    </div>
+    <p class="help" id="help">바르게 앉은 모습을 3초 동안 등록하면, 그 자세를 기준으로 흐트러짐을 알려드려요. 카메라 위치를 바꿨다면 다시 등록해 주세요.</p>
+    <div class="error" id="errorBox" role="alert"></div>
+    <p class="privacy">
+      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" style="flex:none;margin-top:2px"><rect x="2" y="6" width="10" height="7" rx="2" fill="#5B616B"/><path d="M4.5 6V4.5a2.5 2.5 0 015 0V6" stroke="#5B616B" stroke-width="1.6" fill="none"/></svg>
+      영상은 저장하거나 보내지 않아요. 이 기기 안에서 관절 위치만 분석해요.
+    </p>
+  </section>
+
+  <aside>
+    <section class="panel" aria-live="polite">
+      <div class="level-head">
+        <div class="level-state" id="levelState">등록 전</div>
+        <div class="level-score"><b id="score">–</b> 점</div>
+      </div>
+      <div class="level" role="img" aria-label="자세 수평계"><div class="bubble" id="bubbleDot"></div></div>
+      <div class="figures">
+        <div class="figure"><b id="statTime">0분</b><span>앉은 시간</span></div>
+        <div class="figure"><b id="statGood">–</b><span>바른 자세</span></div>
+        <div class="figure"><b id="statAlerts">0번</b><span>잔소리</span></div>
+      </div>
+      <canvas class="timeline" id="timeline" height="12"></canvas>
+      <div class="legend">
+        <span><i style="background:var(--good)"></i>바른 자세</span>
+        <span><i style="background:var(--bad)"></i>흐트러짐</span>
+        <span><i style="background:var(--away)"></i>자리 비움</span>
+      </div>
+    </section>
+
+    <section class="panel" id="report" hidden>
+      <div class="report">
+        <div class="report-avatar" id="reportAvatar"></div>
+        <p class="report-quote" id="reportQuote"></p>
+      </div>
+      <ul class="report-list" id="reportList"></ul>
+      <div class="actions"><button class="btn btn-primary" id="resumeBtn">새로 시작하기</button></div>
+    </section>
+
+    <details class="panel">
+      <summary>알림 설정</summary>
+      <div class="settings">
+        <div>
+          <div class="field-label">알림 방식</div>
+          <div class="seg" data-key="mode">
+            <button data-val="voice">소리와 음성</button>
+            <button data-val="beep">소리만</button>
+            <button data-val="screen">화면만</button>
+          </div>
+          <div class="field-note">도서관이나 독서실에서는 ‘화면만’을 고르거나 에어팟을 연결하세요.</div>
+        </div>
+        <div>
+          <div class="field-label">잔소리 맛</div>
+          <div class="seg" data-key="flavor">
+            <button data-val="mild">순한 맛</button>
+            <button data-val="spicy">매운 맛</button>
+          </div>
+        </div>
+        <div>
+          <label class="field-label" for="sens">민감도 <small id="sensVal"></small></label>
+          <input type="range" id="sens" min="1" max="5" step="1">
+        </div>
+        <div>
+          <label class="field-label" for="delay">경고 전에 기다리는 시간 <small id="delayVal"></small></label>
+          <input type="range" id="delay" min="2" max="30" step="1">
+          <div class="field-note">잠깐 숙이는 정도는 봐드려요.</div>
+        </div>
+        <div>
+          <label class="field-label" for="breakMin">쉬는 시간 알림 <small id="breakMinVal"></small></label>
+          <input type="range" id="breakMin" min="0" max="120" step="10">
+        </div>
+      </div>
+    </details>
+  </aside>
+</main>
+
+<!-- 할매 등판 화면 -->
+<div class="halmae" id="halmae" role="dialog" aria-live="assertive" aria-label="할매 알림">
+  <div class="h-stage" id="hStage"></div>
+  <div class="h-hint">화면을 누르면 닫혀요</div>
+</div>
+
+<script type="module">
+// ===== 외부 AI 모델 =====
+const MP_VER = "0.10.14";
+const MP_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/vision_bundle.mjs`;
+const WASM_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}/wasm`;
+const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+
+// ===== 설정 =====
+const DEFAULTS = { mode: "voice", flavor: "spicy", sens: 3, delay: 5, breakMin: 50 };
+let settings = { ...DEFAULTS };
+try { Object.assign(settings, JSON.parse(localStorage.getItem("posture-halmae") || "{}")); } catch (e) {}
+const saveSettings = () => { try { localStorage.setItem("posture-halmae", JSON.stringify(settings)); } catch (e) {} };
+
+// ===== 대사 =====
+const LINES = {
+  gentle: ["자세가 조금 흐트러졌어요", "고개가 앞으로 나왔어요", "허리를 펴볼까요?"],
+  spicy: {
+    neck: ["목이 거북이 다 됐네! 고개 들어라 이놈아!", "자라냐? 고개 집어넣어라!", "화면에 코 박겠다 이 녀석아!"],
+    drop: ["허리 펴! 새우냐?", "할미가 몇 번 말하냐! 똑바로 앉아!", "누가 책상에 엎드리랬어!"],
+    tilt: ["어깨 삐딱하다! 수평 맞춰라!", "기울어진 어깨 펴라 이놈아!"],
+    torso: ["의자에 눕지 말고 앉아라!", "등 펴라 이 녀석아!"]
+  },
+  mild: {
+    neck: ["아가, 고개 살짝 들어볼까?", "목 아프겠다, 고개 들자~"],
+    drop: ["아가, 허리 쭉 펴보자~", "등이 동그랗네, 펴보자꾸나"],
+    tilt: ["어깨 수평 맞춰보자~"],
+    torso: ["몸이 기울었구나, 바로 앉자~"]
+  },
+  praise: ["옳지~ 우리 강아지!", "그렇지! 그렇게 앉는 거야!", "아이고 잘한다~"],
+  break: ["엉덩이 무겁다! 일어나서 기지개 켜라!", "물 한잔 마시고 와라 이놈아!"]
+};
+const STICKERS = { neck: "쾅!", drop: "퍽!", tilt: "삐빅!", torso: "어이!" };
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const PROBLEM_KO = { neck: "거북목", drop: "구부정한 허리", tilt: "기울어진 어깨", torso: "기울어진 상체" };
+
+// ===== 할매 얼굴 (원본 캐릭터, SVG) =====
+function halmaeSVG(mood) {
+  const hairBack = [[52,74,24],[76,52,26],[104,44,27],[132,52,26],[156,74,24],[42,102,20],[166,102,20]]
+    .map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#D7D9E0" stroke="#16181D" stroke-width="4"/>`).join("");
+  const fringe = [[72,74,15],[92,66,16],[114,66,16],[134,74,15]]
+    .map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#ECEDF2" stroke="#16181D" stroke-width="3.5"/>`).join("");
+  const angry = `
+    <path d="M60 94 L92 106" stroke="#16181D" stroke-width="9" stroke-linecap="round"/>
+    <path d="M148 94 L116 106" stroke="#16181D" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="83" cy="119" r="5" fill="#16181D"/><circle cx="125" cy="119" r="5" fill="#16181D"/>
+    <path d="M78 150 Q104 132 130 150 Q130 178 104 180 Q78 178 78 150Z" fill="#7A1F2B" stroke="#16181D" stroke-width="4"/>
+    <path d="M90 168 Q104 158 118 168 Q112 177 104 177 Q96 177 90 168Z" fill="#F07A8A"/>
+    <path d="M86 150 h36" stroke="#fff" stroke-width="5" stroke-linecap="round"/>`;
+  const happy = `
+    <path d="M66 100 Q80 92 94 100" stroke="#16181D" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M114 100 Q128 92 142 100" stroke="#16181D" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M74 122 Q83 110 92 122" stroke="#16181D" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M116 122 Q125 110 134 122" stroke="#16181D" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <circle cx="64" cy="146" r="11" fill="#FF8FA3" opacity=".75"/><circle cx="144" cy="146" r="11" fill="#FF8FA3" opacity=".75"/>
+    <path d="M84 148 Q104 174 124 148 Z" fill="#7A1F2B" stroke="#16181D" stroke-width="4" stroke-linejoin="round"/>`;
+  return `<svg class="h-face" viewBox="0 0 208 214" aria-hidden="true">
+    ${hairBack}
+    <ellipse cx="104" cy="128" rx="62" ry="66" fill="#FFD7B5" stroke="#16181D" stroke-width="4.5"/>
+    ${fringe}
+    <path d="M86 86 q8 -4 16 0 M106 86 q8 -4 16 0" stroke="#C9967A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <circle cx="83" cy="119" r="18" fill="rgba(255,255,255,.35)" stroke="#16181D" stroke-width="4.5"/>
+    <circle cx="125" cy="119" r="18" fill="rgba(255,255,255,.35)" stroke="#16181D" stroke-width="4.5"/>
+    <path d="M101 117 h6" stroke="#16181D" stroke-width="4.5" stroke-linecap="round"/>
+    ${mood === "happy" ? happy : angry}
+    <path d="M62 158 q7 6 4 13 M146 158 q-7 6 -4 13" stroke="#C9967A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <circle cx="150" cy="64" r="9" fill="#FF3D7F" stroke="#16181D" stroke-width="3"/>
+    <circle cx="150" cy="64" r="3" fill="#FFE14D"/>
+  </svg>`;
+}
+
+// ===== 요소 =====
+const $ = id => document.getElementById(id);
+const video = $("video"), overlay = $("overlay"), ctx = overlay.getContext("2d");
+const startBtn = $("startBtn"), calibBtn = $("calibBtn"), stopBtn = $("stopBtn");
+const halmaeEl = $("halmae"), hStage = $("hStage");
+
+// ===== 상태 =====
+let landmarker = null, running = false, lastDetect = 0, stream = null, wakeLock = null;
+let audioCtx = null, koVoice = null;
+let base = null, calibrating = false, calibSamples = [];
+let smooth = null, lastPresentAt = 0;
+let state = "idle", bad = false, badSince = null, alertStage = 0, lastStage3At = 0, worst = "neck";
+let sittingStart = null, breakReminded = false;
+let stats = { total: 0, good: 0, alerts: 0, problems: { neck: 0, drop: 0, tilt: 0, torso: 0 } };
+let timeline = [];
+let toastTimer = null, edgeTimer = null, halmaeTimer = null;
+
+// ===== 설정 UI =====
+function bindSeg(key) {
+  const wrap = document.querySelector(`.seg[data-key="${key}"]`);
+  const render = () => wrap.querySelectorAll("button").forEach(b => {
+    const on = b.dataset.val === settings[key]; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on);
+  });
+  wrap.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; settings[key] = b.dataset.val; saveSettings(); render(); });
+  render();
+}
+bindSeg("mode"); bindSeg("flavor");
+function bindRange(id, fmt) {
+  const el = $(id), out = $(id + "Val"); el.value = settings[id];
+  const render = () => out.textContent = fmt(Number(el.value));
+  el.addEventListener("input", () => { settings[id] = Number(el.value); saveSettings(); render(); });
+  render();
+}
+bindRange("sens", v => ["", "느슨하게", "조금 느슨하게", "보통", "조금 엄격하게", "엄격하게"][v]);
+bindRange("delay", v => `${v}초`);
+bindRange("breakMin", v => v === 0 ? "끔" : `${v}분마다`);
+
+// ===== 소리 =====
+function unlockAudio() {
+  try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {}
+  try { if ("speechSynthesis" in window) { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u); } } catch (e) {}
+}
+function loadVoice() { if ("speechSynthesis" in window) koVoice = speechSynthesis.getVoices().find(v => /^ko/i.test(v.lang)) || null; }
+if ("speechSynthesis" in window) { loadVoice(); speechSynthesis.onvoiceschanged = loadVoice; }
+function beep(freq = 880, dur = 0.16, times = 1) {
+  if (!audioCtx) return;
+  for (let i = 0; i < times; i++) {
+    const t = audioCtx.currentTime + i * (dur + 0.08), o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = "sine"; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + dur + 0.02);
+  }
+}
+// "쾅" 효과음: 낮은 노이즈 한 방
+function thud() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime, len = 0.25, buf = audioCtx.createBuffer(1, audioCtx.sampleRate * len, audioCtx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+  const src = audioCtx.createBufferSource(), f = audioCtx.createBiquadFilter(), g = audioCtx.createGain();
+  src.buffer = buf; f.type = "lowpass"; f.frequency.value = 600; g.gain.value = 0.9;
+  src.connect(f); f.connect(g); g.connect(audioCtx.destination); src.start(t);
+}
+function speak(text, grandma = true) {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text); u.lang = "ko-KR"; if (koVoice) u.voice = koVoice;
+    u.rate = grandma ? 1.08 : 1.0; u.pitch = grandma ? 0.6 : 1.05; speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+// ===== 평소 알림 (조용) =====
+function showToast(text) {
+  const t = $("toast"); t.textContent = text; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 3000);
+}
+function edgeFlash(ms = 1000) {
+  const e = $("camEdge"); e.classList.add("on"); clearTimeout(edgeTimer); edgeTimer = setTimeout(() => e.classList.remove("on"), ms);
+}
+
+// ===== 할매 등판 (병맛) =====
+function showHalmae(text, { mood = "angry", slipper = mood === "angry", sticker = "쾅!", sound = true, ms = 3400 } = {}) {
+  const words = text.split(" ").map((w, i) => `<span style="animation-delay:${0.25 + i * 0.09}s">${w}</span>`).join(" ");
+  const hearts = mood === "happy"
+    ? `<div class="h-hearts">${Array.from({ length: 12 }, () => `<span style="left:${Math.random() * 95}%;animation-delay:${(Math.random() * 1.2).toFixed(2)}s">${pick(["💖", "✨", "🍠", "💕"])}</span>`).join("")}</div>`
+    : "";
+  hStage.innerHTML = `
+    ${mood === "angry" ? `<div class="h-sticker h-bang">${sticker}</div><div class="h-sticker h-vein">💢</div>` : ""}
+    ${halmaeSVG(mood)}
+    <p class="h-text">${words}</p>
+    ${slipper ? `<div class="h-slipper">🩴</div>` : ""}`;
+  halmaeEl.querySelectorAll(".h-hearts").forEach(n => n.remove());
+  if (hearts) halmaeEl.insertAdjacentHTML("afterbegin", hearts);
+  halmaeEl.className = `halmae ${mood}`;
+  void halmaeEl.offsetWidth;            // 애니메이션 다시 시작
+  halmaeEl.classList.add("show");
+  if (sound && settings.mode !== "screen" && mood === "angry") setTimeout(thud, slipper ? 1050 : 200);
+  clearTimeout(halmaeTimer); halmaeTimer = setTimeout(hideHalmae, ms);
+}
+function hideHalmae() { halmaeEl.classList.remove("show"); }
+halmaeEl.addEventListener("click", hideHalmae);
+document.addEventListener("keydown", e => { if (e.key === "Escape") hideHalmae(); });
+
+// 단계별 알림: 1 조용한 신호 → 2 부드러운 음성 → 3 할매 등판
+function alertUser(stage, problem) {
+  stats.alerts++;
+  if (stage === 1) {
+    edgeFlash(900); showToast("자세가 흐트러졌어요");
+    if (settings.mode !== "screen") beep(880, 0.14, 1);
+    return;
+  }
+  if (stage === 2) {
+    const t = pick(LINES.gentle); edgeFlash(1400); showToast(t);
+    if (settings.mode === "voice") speak(t, false); else if (settings.mode === "beep") beep(880, 0.14, 2);
+    return;
+  }
+  const t = pick(LINES[settings.flavor][problem] || LINES[settings.flavor].drop);
+  if (settings.flavor === "mild") showHalmae(t, { mood: "angry", slipper: false, sticker: "에헴" });
+  else showHalmae(t, { mood: "angry", sticker: STICKERS[problem] || "쾅!" });
+  if (settings.mode === "voice") speak(t, true); else if (settings.mode === "beep") beep(660, 0.2, 3);
+}
+$("testBtn").addEventListener("click", () => {
+  unlockAudio();
+  const t = pick(LINES.spicy.drop);
+  showHalmae(t, { mood: "angry", sticker: "퍽!" });
+  if (settings.mode === "voice") speak(t, true);
+});
+
+// ===== 자세 계산 (3D 좌표, 카메라 각도 무관) =====
+const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 });
+function angleFromUp(v) { const len = Math.hypot(v.x, v.y, v.z) || 1e-6; return Math.acos(Math.max(-1, Math.min(1, -v.y / len))) * 180 / Math.PI; }
+function computeFeatures(w) {
+  const ear = mid(w[7], w[8]), sh = mid(w[11], w[12]), hip = mid(w[23], w[24]);
+  return {
+    neck: angleFromUp({ x: ear.x - sh.x, y: ear.y - sh.y, z: ear.z - sh.z }),
+    gap: sh.y - ear.y,
+    tilt: Math.abs(w[11].y - w[12].y),
+    torso: angleFromUp({ x: sh.x - hip.x, y: sh.y - hip.y, z: sh.z - hip.z })
+  };
+}
+function isPresent(lm) {
+  const v = i => (lm[i] && lm[i].visibility != null) ? lm[i].visibility : 0;
+  return (v(11) + v(12)) / 2 > 0.5 && Math.max(v(0), v(7), v(8)) > 0.5;
+}
+function evaluate(f) {
+  const s = settings.sens, th = { neck: 18 - 2.5 * s, drop: 0.30 - 0.04 * s, tilt: 0.07 - 0.01 * s, torso: 20 - 2.5 * s };
+  const r = {
+    neck: Math.max(0, f.neck - base.neck) / th.neck,
+    drop: Math.max(0, (base.gap - f.gap) / Math.max(base.gap, 0.05)) / th.drop,
+    tilt: Math.max(0, f.tilt - base.tilt) / th.tilt,
+    torso: 0.7 * Math.max(0, f.torso - base.torso) / th.torso
+  };
+  let w = "neck", m = 0; for (const k in r) if (r[k] > m) { m = r[k]; w = k; }
+  return { ratio: m, worst: w, score: Math.round(Math.max(0, Math.min(100, 100 - 40 * m))) };
+}
+
+// ===== 그리기 =====
+const BONES = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24], [7, 11], [8, 12], [7, 0], [8, 0]];
+function draw(lm) {
+  const dpr = window.devicePixelRatio || 1, W = overlay.width = overlay.clientWidth * dpr, H = overlay.height = overlay.clientHeight * dpr;
+  ctx.clearRect(0, 0, W, H); if (!lm) return;
+  const vw = video.videoWidth || 640, vh = video.videoHeight || 480, sc = Math.max(W / vw, H / vh), ox = (W - vw * sc) / 2, oy = (H - vh * sc) / 2;
+  const P = p => [ox + p.x * vw * sc, oy + p.y * vh * sc];
+  const color = state === "bad" ? "#E5484D" : state === "good" ? "#1FA971" : "#FFFFFF";
+  ctx.lineWidth = 3.5 * dpr; ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineCap = "round";
+  for (const [a, b] of BONES) {
+    if ((lm[a].visibility ?? 1) < 0.3 || (lm[b].visibility ?? 1) < 0.3) continue;
+    const [x1, y1] = P(lm[a]), [x2, y2] = P(lm[b]); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+  for (const i of [0, 7, 8, 11, 12]) {
+    if ((lm[i].visibility ?? 1) < 0.3) continue;
+    const [x, y] = P(lm[i]); ctx.beginPath(); ctx.arc(x, y, 5 * dpr, 0, Math.PI * 2); ctx.fill();
+  }
+}
+function setBadge(text, cls = "") { $("badgeText").textContent = text; $("badge").className = "badge " + cls; }
+function setLevel(ratio, cls, label) {
+  const dot = $("bubbleDot"), side = (worst === "drop" || worst === "tilt") ? -1 : 1;
+  const off = ratio == null ? 0 : Math.min(1, ratio / 2) * 42 * side;
+  dot.style.left = `calc(50% + ${off}%)`; dot.className = "bubble " + cls;
+  if (label) $("levelState").textContent = label;
+}
+const fmtMin = sec => { const m = Math.floor(sec / 60); return m < 60 ? `${m}분` : `${Math.floor(m / 60)}시간 ${m % 60}분`; };
+function renderStats(score) {
+  if (score != null) $("score").textContent = score;
+  $("statTime").textContent = fmtMin(stats.total);
+  $("statGood").textContent = stats.total ? Math.round(stats.good / stats.total * 100) + "%" : "–";
+  $("statAlerts").textContent = stats.alerts + "번";
+}
+function renderTimeline() {
+  const c = $("timeline"), dpr = window.devicePixelRatio || 1, W = c.width = c.clientWidth * dpr, H = c.height = 12 * dpr, g = c.getContext("2d");
+  g.clearRect(0, 0, W, H); const n = timeline.length; if (!n) return;
+  const per = Math.max(1, Math.ceil(n / 160)), buckets = Math.ceil(n / per), bw = W / buckets;
+  const col = ["#AEB4BD", "#1FA971", "#E5484D"];
+  for (let b = 0; b < buckets; b++) {
+    const cnt = [0, 0, 0]; for (let i = b * per; i < Math.min(n, (b + 1) * per); i++) cnt[timeline[i]]++;
+    const k = cnt[2] >= cnt[1] && cnt[2] >= cnt[0] ? 2 : cnt[1] >= cnt[0] ? 1 : 0;
+    g.fillStyle = col[k]; g.fillRect(b * bw, 0, Math.ceil(bw), H);
+  }
+}
+
+// ===== 매 프레임 =====
+function handle(res, now) {
+  const lm = res && res.landmarks && res.landmarks[0], wl = res && res.worldLandmarks && res.worldLandmarks[0];
+  const present = !!(lm && wl && isPresent(lm));
+  draw(lm);
+  if (present) lastPresentAt = now;
+  if (!present) {
+    if (now - lastPresentAt > 3000) {
+      state = "away"; bad = false; badSince = null; alertStage = 0;
+      setBadge(calibrating ? "상체가 안 보여요" : "자리 비움"); setLevel(null, "", base ? "자리 비움" : null);
+    }
+    return;
+  }
+  const f = computeFeatures(wl);
+  if (!smooth) smooth = { ...f }; else for (const k in f) smooth[k] = smooth[k] * 0.7 + f[k] * 0.3;
+  if (calibrating) { calibSamples.push({ ...f }); return; }
+  if (!base) { setBadge("바른 자세를 등록해 주세요"); return; }
+
+  const ev = evaluate(smooth);
+  if (ev.ratio >= 1) bad = true; else if (ev.ratio < 0.85) bad = false;
+  if (bad) worst = ev.worst;
+
+  if (bad) {
+    state = "bad"; if (!badSince) badSince = now;
+    const dur = (now - badSince) / 1000, d = settings.delay;
+    setBadge(`${PROBLEM_KO[worst]} 주의`, "bad"); setLevel(ev.ratio, "bad", PROBLEM_KO[worst]);
+    if (dur >= d && alertStage < 1) { alertStage = 1; alertUser(1, worst); }
+    else if (dur >= d + 6 && alertStage < 2) { alertStage = 2; alertUser(2, worst); }
+    else if (dur >= d + 12 && alertStage < 3) { alertStage = 3; lastStage3At = now; alertUser(3, worst); }
+    else if (alertStage === 3 && now - lastStage3At > 15000) { lastStage3At = now; alertUser(3, worst); }
+  } else {
+    if (state === "bad" && alertStage >= 3) {
+      const t = pick(LINES.praise); showHalmae(t, { mood: "happy", ms: 2600 });
+      if (settings.mode === "voice") speak(t, true);
+    } else if (state === "bad" && alertStage === 2) showToast("좋아요, 바르게 앉았어요");
+    state = "good"; badSince = null; alertStage = 0;
+    setBadge("바른 자세", "good"); setLevel(ev.ratio, "good", "수평 유지 중");
+  }
+  renderStats(ev.score);
+}
+function loop() {
+  if (!running) return;
+  const now = performance.now();
+  if (landmarker && video.readyState >= 2 && now - lastDetect >= 90) {
+    lastDetect = now; let res = null;
+    try { res = landmarker.detectForVideo(video, now); } catch (e) { console.error(e); }
+    handle(res, now);
+  }
+  requestAnimationFrame(loop);
+}
+setInterval(() => {
+  if (!running || !base || calibrating) return;
+  const nowMs = performance.now();
+  if (state === "away") {
+    timeline.push(0);
+    if (sittingStart && nowMs - lastPresentAt > 60000) { sittingStart = null; breakReminded = false; }
+  } else if (state === "good" || state === "bad") {
+    timeline.push(state === "good" ? 1 : 2); stats.total++;
+    if (state === "good") stats.good++; else stats.problems[worst]++;
+    if (!sittingStart) sittingStart = nowMs;
+    if (settings.breakMin > 0 && !breakReminded && nowMs - sittingStart >= settings.breakMin * 60000) {
+      breakReminded = true;
+      const t = pick(LINES.break); showHalmae(t, { mood: "angry", slipper: false, sticker: "삐빅!" });
+      if (settings.mode === "voice") speak(t, true); else if (settings.mode === "beep") beep(523, 0.3, 2);
+      setTimeout(() => { sittingStart = performance.now(); breakReminded = false; }, 5 * 60000);
+    }
+  }
+  renderStats(null); renderTimeline();
+}, 1000);
+
+// ===== 버튼 =====
+const showError = msg => { const b = $("errorBox"); b.innerHTML = msg; b.style.display = "block"; };
+const hideError = () => $("errorBox").style.display = "none";
+async function requestWakeLock() { try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {} }
+document.addEventListener("visibilitychange", () => { if (running && document.visibilityState === "visible") requestWakeLock(); });
+
+startBtn.addEventListener("click", async () => {
+  unlockAudio(); hideError();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showError("이 화면에서는 카메라를 쓸 수 없어요. <b>https:// 주소를 사파리나 크롬에서 직접</b> 열어주세요."); return;
+  }
+  startBtn.disabled = true;
+  try {
+    setBadge("카메라 켜는 중");
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    video.srcObject = stream; await video.play(); $("camEmpty").style.display = "none";
+  } catch (e) {
+    startBtn.disabled = false; setBadge("대기 중");
+    showError("카메라를 켜지 못했어요. 브라우저 설정에서 카메라 권한을 허용해 주세요.<br><small>" + (e && e.name ? e.name : e) + "</small>"); return;
+  }
+  try {
+    setBadge("AI 준비 중");
+    const { PoseLandmarker, FilesetResolver } = await import(MP_URL);
+    const vision = await FilesetResolver.forVisionTasks(WASM_URL);
+    const make = delegate => PoseLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: MODEL_URL, delegate }, runningMode: "VIDEO", numPoses: 1,
+      minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5
+    });
+    try { landmarker = await make("GPU"); } catch (e) { landmarker = await make("CPU"); }
+  } catch (e) {
+    setBadge("오류", "bad");
+    showError("AI 모델을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.<br><small>" + (e && e.message ? e.message : e) + "</small>"); return;
+  }
+  running = true; lastPresentAt = performance.now(); requestWakeLock();
+  startBtn.hidden = true; calibBtn.hidden = false; stopBtn.hidden = false;
+  setBadge("바른 자세를 등록해 주세요"); $("levelState").textContent = "등록 전";
+  requestAnimationFrame(loop);
+});
+
+calibBtn.addEventListener("click", () => {
+  unlockAudio(); if (calibrating) return; calibBtn.disabled = true; hideError();
+  let n = 3;
+  const tick = () => {
+    if (n > 0) { setBadge(`바르게 앉아 주세요 ${n}`); showToast(`허리 펴고 바르게 앉아 주세요  ${n}`); n--; setTimeout(tick, 1000); return; }
+    calibrating = true; calibSamples = []; setBadge("등록 중, 그대로 계세요");
+    setTimeout(() => {
+      calibrating = false; calibBtn.disabled = false;
+      if (calibSamples.length < 8) {
+        showError("상체가 잘 보이지 않아 등록하지 못했어요. 머리와 양어깨가 화면에 들어오게 하고 다시 시도해 주세요.");
+        setBadge("바른 자세를 등록해 주세요"); return;
+      }
+      const avg = {}; for (const k of ["neck", "gap", "tilt", "torso"]) avg[k] = calibSamples.reduce((s, x) => s + x[k], 0) / calibSamples.length;
+      base = avg; smooth = { ...avg }; bad = false; badSince = null; alertStage = 0;
+      calibBtn.textContent = "다시 등록"; calibBtn.className = "btn";
+      const t = "이 자세 기억했다! 이제 할미가 지켜본다";
+      showHalmae(t, { mood: "happy", ms: 2800 }); if (settings.mode === "voice") speak(t, true);
+    }, 3000);
+  };
+  tick();
+});
+
+function buildReport() {
+  const pct = stats.total ? Math.round(stats.good / stats.total * 100) : 0;
+  let top = null, topN = 0; for (const k in stats.problems) if (stats.problems[k] > topN) { topN = stats.problems[k]; top = k; }
+  const good = stats.total && pct >= 85;
+  $("reportAvatar").innerHTML = halmaeSVG(good || !stats.total ? "happy" : "angry");
+  $("reportQuote").textContent = !stats.total ? "오늘은 기록이 거의 없구나. 다음엔 좀 앉아 있어 보거라."
+    : pct >= 85 ? "아이고 우리 강아지, 오늘 자세 아주 훌륭했다!"
+    : pct >= 60 ? "그럭저럭 했다만 할미 눈엔 아직 멀었다."
+    : "이놈아, 오늘 자세가 이게 뭐냐! 내일은 더 매섭게 본다.";
+  $("reportList").innerHTML =
+    `<li><span>앉아 있던 시간</span><b>${fmtMin(stats.total)}</b></li>` +
+    `<li><span>바른 자세 비율</span><b>${stats.total ? pct + "%" : "기록 없음"}</b></li>` +
+    `<li><span>할매 잔소리</span><b>${stats.alerts}번</b></li>` +
+    `<li><span>가장 많이 흐트러진 곳</span><b>${top ? PROBLEM_KO[top] : "없음"}</b></li>`;
+}
+stopBtn.addEventListener("click", () => {
+  running = false;
+  try { stream && stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+  try { wakeLock && wakeLock.release(); } catch (e) {}
+  try { speechSynthesis.cancel(); } catch (e) {}
+  draw(null); setBadge("끝났어요"); calibBtn.hidden = true; stopBtn.hidden = true;
+  buildReport(); $("report").hidden = false; $("report").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+$("resumeBtn").addEventListener("click", () => location.reload());
+window.addEventListener("resize", renderTimeline);
+
+// 디자인 확인용: 주소 끝에 #demo 를 붙이면 화면 상태를 미리 볼 수 있어요
+if (location.hash === "#demo-angry") showHalmae("허리 펴! 새우냐?", { mood: "angry", sticker: "퍽!", sound: false, ms: 999999 });
+if (location.hash === "#demo-happy") showHalmae("옳지~ 우리 강아지!", { mood: "happy", sound: false, ms: 999999 });
+if (location.hash === "#demo") {
+  base = {}; state = "good"; stats = { total: 2710, good: 2250, alerts: 6, problems: { neck: 300, drop: 120, tilt: 40, torso: 0 } };
+  timeline = Array.from({ length: 300 }, (_, i) => (i > 80 && i < 110) || (i > 200 && i < 215) ? 2 : (i > 150 && i < 165) ? 0 : 1);
+  setBadge("바른 자세", "good"); setLevel(0.2, "good", "수평 유지 중"); renderStats(92); renderTimeline();
+}
+if (location.hash === "#demo-report") { stats = { total: 2710, good: 2250, alerts: 6, problems: { neck: 300, drop: 120, tilt: 40, torso: 0 } }; buildReport(); $("report").hidden = false; }
+</script>
+</body>
+</html>
