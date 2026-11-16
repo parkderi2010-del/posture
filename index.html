@@ -377,6 +377,7 @@ let base = null, calibrating = false, calibSamples = [];
 let smooth = null, lastPresentAt = 0;
 let state = "idle", bad = false, badSince = null, alertStage = 0, lastStage3At = 0, worst = "neck";
 let sittingStart = null, breakReminded = false;
+let goodSince = null, praiseTimer = null;
 let stats = { total: 0, good: 0, alerts: 0, problems: { neck: 0, drop: 0, tilt: 0, torso: 0 } };
 let timeline = [];
 let toastTimer = null, edgeTimer = null, halmaeTimer = null;
@@ -583,7 +584,11 @@ function handle(res, now) {
   if (!base) { setBadge("바른 자세를 등록해 주세요"); return; }
 
   const ev = evaluate(smooth);
-  if (ev.ratio >= 1) bad = true; else if (ev.ratio < 0.85) bad = false;
+  // 흐트러짐 → 바른 자세로 인정하려면 2초 동안 계속 바르게 앉아 있어야 함 (경계값에서 잘못 칭찬하는 것 방지)
+  if (ev.ratio >= 1) { bad = true; goodSince = null; }
+  else if (ev.ratio < 0.85) {
+    if (bad) { if (!goodSince) goodSince = now; if (now - goodSince >= 2000) { bad = false; goodSince = null; } }
+  } else goodSince = null;
   if (bad) worst = ev.worst;
 
   if (bad) {
@@ -591,13 +596,18 @@ function handle(res, now) {
     const dur = (now - badSince) / 1000, d = settings.delay;
     setBadge(`${PROBLEM_KO[worst]} 주의`, "bad"); setLevel(ev.ratio, "bad", PROBLEM_KO[worst]);
     if (dur >= d && alertStage < 1) { alertStage = 1; alertUser(1, worst); }
-    else if (dur >= d + 6 && alertStage < 2) { alertStage = 2; alertUser(2, worst); }
-    else if (dur >= d + 12 && alertStage < 3) { alertStage = 3; lastStage3At = now; alertUser(3, worst); }
-    else if (alertStage === 3 && now - lastStage3At > 15000) { lastStage3At = now; alertUser(3, worst); }
+    else if (dur >= d + 3 && alertStage < 2) { alertStage = 2; alertUser(2, worst); }
+    else if (dur >= d + 6 && alertStage < 3) { alertStage = 3; lastStage3At = now; alertUser(3, worst); }
+    else if (alertStage === 3 && now - lastStage3At > 12000) { lastStage3At = now; alertUser(3, worst); }
   } else {
     if (state === "bad" && alertStage >= 3) {
-      const t = pick(LINES.praise); showHalmae(t, { mood: "happy", ms: 2600 });
-      if (settings.mode === "voice") speak(t, true);
+      // 혼내는 할매가 최소 3초는 보이고, 잔소리가 끝난 뒤에 칭찬
+      clearTimeout(praiseTimer);
+      praiseTimer = setTimeout(() => {
+        if (state !== "good") return;
+        const t = pick(LINES.praise); showHalmae(t, { mood: "happy", ms: 2600 });
+        if (settings.mode === "voice") speak(t, true);
+      }, Math.max(0, lastStage3At + 3000 - now));
     } else if (state === "bad" && alertStage === 2) showToast("좋아요, 바르게 앉았어요");
     state = "good"; badSince = null; alertStage = 0;
     setBadge("바른 자세", "good"); setLevel(ev.ratio, "good", "수평 유지 중");
