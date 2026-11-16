@@ -566,7 +566,8 @@ const level = n => n <= 0 ? 0 : n <= 3 ? 1 : n <= 8 ? 2 : 3;
 const ERR_KO = { depth: "덜 앉음", range: "가동 범위 부족", lean: "상체 숙임", knees: "무릎 모임", sag: "허리 처짐", pike: "엉덩이 들림",
   kneeBend: "무릎 과하게 굽힘", archback: "허리 꺾임", tooHigh: "팔 너무 높이 듦", swing: "반동 사용", standUp: "상체 세움",
   swingBack: "상체 젖힘", kip: "몸 흔들기", elbowDrift: "팔꿈치 움직임", squatty: "엉덩이 너무 낮춤", tooFast: "너무 빠름", uneven: "양팔 높이 차이",
-  refDepth: "모범 동작보다 얕음", refLean: "모범 동작보다 상체 흔들림", refShape: "모범 동작과 다름" };
+  refDepth: "모범 동작보다 얕음", refLean: "모범 동작보다 상체 흔들림", refShape: "모범 동작과 다름",
+  noLockout: "끝까지 안 폄", head: "고개 떨굼", unevenLeg: "다리 좌우 쏠림", fastDown: "내릴 때 너무 빠름" };
 const HELLO = {
   gs: { none: "오늘은 운동 안 했나! 엉덩이 무겁데이!", did: p => `오늘 ${p} 했네, 잘했데이!`, streak: n => `${n}일 연속이다, 억수로 장하데이!` },
   jl: { none: "오늘은 운동 안 했냐! 엉덩이 무겁다잉!", did: p => `오늘 ${p} 했구먼, 잘했다잉!`, streak: n => `${n}일 연속이여, 겁나게 장하다잉!` },
