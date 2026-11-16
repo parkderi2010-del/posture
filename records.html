@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#F2F4F7">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="바로핏">
+
+<title>바로핏 기록</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap">
+<style>
+
+  /* ── 토큰 ───────────────────────────────
+     평소: 차분한 측정 도구 (쿨 그레이 + 수평계 블루)
+     할매: 만화 폭발 (옐로 + 핫핑크 + 굵은 외곽선) */
+  :root{
+    --paper:#EEF1F4;
+    --surface:#FFFFFF;
+    --ink:#16181D;
+    --ink-2:#5B616B;
+    --hair:#DCE1E7;
+    --level:#2F5BEA;
+    --good:#1FA971;
+    --bad:#E5484D;
+    --away:#AEB4BD;
+    --h-yellow:#FFE14D;
+    --h-yellow-2:#FFC800;
+    --h-pink:#FF3D7F;
+    --h-pink-soft:#FFB3CF;
+    --ui:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    --comic:"Black Han Sans","Pretendard Variable",-apple-system,"Apple SD Gothic Neo",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--ui);
+    -webkit-text-size-adjust:100%;font-feature-settings:"tnum" 1}
+  button{font:inherit}
+  :focus-visible{outline:3px solid var(--level);outline-offset:2px}
+
+  /* ── 상단 ── */
+  .top{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 8px;max-width:1240px;margin:0 auto}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.4px}
+  .brand-mark{width:30px;height:30px}
+  .top-note{font-size:13px;color:var(--ink-2)}
+  .nav{display:flex;background:var(--surface);border-radius:12px;padding:4px;gap:4px;box-shadow:inset 0 0 0 1px var(--hair)}
+  .nav a{padding:8px 14px;border-radius:9px;font-size:14px;font-weight:700;color:var(--ink-2);text-decoration:none}
+  .nav a.on{background:var(--ink);color:#fff}
+  @media (max-width:520px){ .nav a{padding:8px 9px;font-size:13px} .brand{font-size:17px} }
+
+  /* ── 레이아웃 ── */
+  .app{display:grid;gap:20px;padding:12px 24px 40px;max-width:1240px;margin:0 auto;grid-template-columns:1fr}
+  @media (min-width:960px){ .app{grid-template-columns:minmax(0,1.4fr) minmax(340px,1fr);align-items:start} }
+  @media (max-width:520px){ .top{padding:16px 16px 4px} .app{padding:10px 16px 32px} }
+
+  /* ── 카메라 ── */
+  .cam{position:relative;aspect-ratio:4/3;border-radius:24px;overflow:hidden;background:#20242B}
+  .cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+  .cam canvas{pointer-events:none}
+  .cam-empty{position:absolute;inset:0;display:grid;place-content:center;gap:14px;text-align:center;padding:28px;color:#C9CED6}
+  .cam-empty svg{width:88px;height:88px;margin:0 auto;opacity:.9}
+  .cam-empty p{margin:0;font-size:15px;line-height:1.6;max-width:30ch}
+  .badge{position:absolute;top:14px;left:14px;display:flex;align-items:center;gap:8px;padding:8px 14px 8px 12px;
+    border-radius:999px;background:rgba(22,24,29,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    color:#fff;font-size:14px;font-weight:700}
+  .badge i{width:9px;height:9px;border-radius:50%;background:var(--away)}
+  .badge.good i{background:var(--good)} .badge.bad i{background:var(--bad)}
+  .cam-edge{position:absolute;inset:0;border-radius:24px;box-shadow:inset 0 0 0 0 var(--bad);transition:box-shadow .2s;pointer-events:none}
+  .cam-edge.on{box-shadow:inset 0 0 0 6px var(--bad)}
+  .toast{position:absolute;left:50%;top:0;transform:translate(-50%,-120%);opacity:0;background:var(--surface);color:var(--ink);
+    padding:10px 16px;border-radius:14px;font-size:15px;font-weight:700;box-shadow:0 6px 24px rgba(22,24,29,.18);
+    transition:transform .3s cubic-bezier(.2,.9,.3,1.2),opacity .2s;max-width:calc(100% - 28px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .toast.show{transform:translate(-50%,66px);opacity:1}
+
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .btn{border:0;border-radius:14px;padding:14px 20px;min-height:52px;font-size:16px;font-weight:700;cursor:pointer;
+    background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 1px var(--hair)}
+  .btn-primary{background:var(--ink);color:#fff;box-shadow:none}
+  .btn-quiet{background:transparent;box-shadow:none;color:var(--ink-2);padding-left:8px;padding-right:8px}
+  .btn:disabled{opacity:.35;cursor:not-allowed}
+  .btn[hidden]{display:none}
+  .help{margin:14px 2px 0;font-size:14px;line-height:1.65;color:var(--ink-2);max-width:62ch}
+  .error{display:none;margin-top:12px;padding:12px 14px;border-radius:12px;background:#FDECEC;color:#9B1C1F;font-size:14px;line-height:1.6}
+  .privacy{display:flex;gap:8px;align-items:flex-start;margin:12px 2px 0;font-size:12.5px;color:var(--ink-2);line-height:1.5}
+
+  /* ── 패널 ── */
+  .panel{background:var(--surface);border-radius:24px;padding:22px}
+  .panel + .panel{margin-top:16px}
+  .panel h2{margin:0 0 4px;font-size:15px;font-weight:700;color:var(--ink-2)}
+
+  /* 수평계: 자세가 흐트러질수록 기포가 가운데에서 벗어남 */
+  .level-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+  .level-state{font-size:26px;font-weight:800;letter-spacing:-.8px}
+  .level-score{font-size:15px;color:var(--ink-2);font-weight:600}
+  .level-score b{font-size:22px;color:var(--ink);font-weight:800}
+  .level{position:relative;height:52px;border-radius:26px;background:var(--paper);overflow:hidden}
+  .level::before,.level::after{content:"";position:absolute;top:10px;bottom:10px;width:2px;background:#C5CCD5;border-radius:1px}
+  .level::before{left:calc(50% - 34px)} .level::after{left:calc(50% + 32px)}
+  .bubble{position:absolute;top:8px;width:36px;height:36px;margin-left:-18px;left:50%;border-radius:50%;
+    background:var(--away);transition:left .45s cubic-bezier(.3,.8,.3,1),background .3s;
+    box-shadow:inset -4px -5px 0 rgba(0,0,0,.08),inset 4px 4px 0 rgba(255,255,255,.45)}
+  .bubble.good{background:var(--good)} .bubble.bad{background:var(--bad)}
+
+  .figures{display:grid;grid-template-columns:repeat(3,1fr);margin-top:20px}
+  .figure{padding:0 14px;border-left:1px solid var(--hair)}
+  .figure:first-child{padding-left:0;border-left:0}
+  .figure b{display:block;font-size:22px;font-weight:800;letter-spacing:-.5px}
+  .figure span{font-size:13px;color:var(--ink-2)}
+  .timeline{display:block;width:100%;height:12px;margin-top:22px;border-radius:6px;background:var(--paper)}
+  .legend{display:flex;gap:14px;margin-top:8px;font-size:12px;color:var(--ink-2)}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
+
+  /* 설정 */
+  details.panel summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;
+    font-size:15px;font-weight:700;color:var(--ink)}
+  details.panel summary::-webkit-details-marker{display:none}
+  details.panel summary::after{content:"";width:9px;height:9px;border-right:2px solid var(--ink-2);border-bottom:2px solid var(--ink-2);
+    transform:rotate(45deg);transition:transform .2s;margin-right:4px}
+  details[open].panel summary::after{transform:rotate(-135deg)}
+  .settings{margin-top:18px;display:grid;gap:20px}
+  .field-label{display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-bottom:8px}
+  .field-label small{font-weight:600;color:var(--level)}
+  .field-note{font-size:12.5px;color:var(--ink-2);margin-top:6px;line-height:1.5}
+  .seg{display:flex;background:var(--paper);border-radius:12px;padding:4px;gap:4px}
+  .seg button{flex:1;border:0;background:transparent;border-radius:9px;padding:10px 6px;font-size:14px;font-weight:600;color:var(--ink-2);cursor:pointer;min-height:42px}
+  .seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(22,24,29,.12)}
+  input[type=range]{width:100%;accent-color:var(--level);height:28px}
+
+  /* 리포트 */
+  .report{display:grid;grid-template-columns:96px 1fr;gap:16px;align-items:center}
+  .report-avatar{width:96px;height:96px;border-radius:50%;background:var(--h-yellow);display:grid;place-items:center;overflow:hidden}
+  .report-avatar svg{width:92px;height:92px;margin-top:10px}
+  .report-quote{font-family:var(--comic);font-size:21px;line-height:1.35;margin:0}
+  .report-list{margin:18px 0 0;padding:0;list-style:none;display:grid;gap:10px}
+  .report-list li{display:flex;justify-content:space-between;font-size:15px;padding-bottom:10px;border-bottom:1px solid var(--hair)}
+  .report-list li b{font-weight:800}
+
+  /* ── 할매 등판 (병맛 구간) ───────────────── */
+  .halmae{position:fixed;inset:0;z-index:50;display:none;place-items:center;overflow:hidden;cursor:pointer;
+    background:
+      radial-gradient(circle at 50% 42%,rgba(255,255,255,.95) 0 9%,rgba(255,255,255,0) 26%),
+      repeating-conic-gradient(from 0deg at 50% 42%,var(--h-yellow) 0 5deg,var(--h-yellow-2) 5deg 10deg)}
+  .halmae.happy{background:
+      radial-gradient(circle at 50% 42%,rgba(255,255,255,.95) 0 9%,rgba(255,255,255,0) 26%),
+      repeating-conic-gradient(from 0deg at 50% 42%,var(--h-pink-soft) 0 5deg,#FF8FB8 5deg 10deg)}
+  .halmae.show{display:grid}
+  .halmae::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.18;
+    background-image:radial-gradient(var(--ink) 1.2px,transparent 1.4px);background-size:9px 9px}
+  .halmae.show.angry .h-stage{animation:shake .5s steps(2) 2}
+  .h-stage{position:relative;display:grid;justify-items:center;gap:6px;width:min(92vw,720px);padding:20px}
+  .h-face{width:min(58vw,330px);height:auto;animation:faceIn .5s cubic-bezier(.2,1.6,.4,1) both}
+  .halmae.angry .h-face{animation:faceIn .5s cubic-bezier(.2,1.6,.4,1) both,jitter .12s linear .5s infinite}
+  .halmae.happy .h-face{animation:faceIn .5s cubic-bezier(.2,1.6,.4,1) both,bob 1s ease-in-out .5s infinite}
+  .h-text{margin:0;text-align:center;font-family:var(--comic);font-weight:400;color:#fff;line-height:1.12;
+    font-size:clamp(34px,7.4vw,74px);letter-spacing:-.5px;transform:rotate(-3deg);
+    -webkit-text-stroke:9px var(--ink);paint-order:stroke fill;text-shadow:7px 7px 0 var(--h-pink);word-break:keep-all}
+  .halmae.happy .h-text{text-shadow:7px 7px 0 var(--h-yellow-2)}
+  .h-text.long{font-size:clamp(28px,5.4vw,58px);-webkit-text-stroke-width:7px;max-width:16em}
+  .h-text span{display:inline-block;animation:pop .35s cubic-bezier(.2,1.8,.4,1) both}
+  .h-sticker{position:absolute;font-family:var(--comic);color:#fff;-webkit-text-stroke:6px var(--ink);paint-order:stroke fill;
+    font-size:clamp(30px,6vw,56px);animation:pop .35s cubic-bezier(.2,1.8,.4,1) .15s both}
+  .h-bang{top:4%;left:4%;rotate:-14deg;padding:28px 30px;background:var(--h-pink);
+    clip-path:polygon(50% 0,61% 30%,95% 20%,72% 47%,100% 66%,66% 70%,70% 100%,50% 78%,28% 100%,32% 71%,0 66%,28% 47%,6% 20%,39% 30%)}
+  .h-vein{top:6%;right:8%;font-size:clamp(48px,9vw,90px);-webkit-text-stroke:0;animation-delay:.25s}
+  .h-slipper{position:absolute;left:50%;top:40%;font-size:64px;line-height:1;pointer-events:none;opacity:0;animation:slipper 1.25s cubic-bezier(.5,0,.6,1) .45s forwards}
+  .h-hearts{position:absolute;inset:0;pointer-events:none}
+  .h-hearts span{position:absolute;bottom:-60px;font-size:34px;animation:rise 2.6s ease-in forwards}
+  .h-hint{position:absolute;bottom:22px;left:0;right:0;text-align:center;font-size:13px;font-weight:700;color:var(--ink);opacity:.55}
+
+  @keyframes faceIn{0%{transform:scale(0) rotate(-40deg)}100%{transform:scale(1) rotate(0)}}
+  @keyframes jitter{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(-3px,2px) rotate(-1.5deg)}50%{transform:translate(3px,-2px) rotate(1.5deg)}75%{transform:translate(-2px,-1px) rotate(-1deg)}}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-10px) rotate(2deg)}}
+  @keyframes pop{0%{transform:scale(0)}100%{transform:scale(1)}}
+  @keyframes shake{0%{transform:translate(-12px,6px)}50%{transform:translate(12px,-6px)}100%{transform:translate(0,0)}}
+  @keyframes slipper{
+    0%{opacity:1;transform:translate(-50%,-50%) scale(.4) rotate(0)}
+    55%{opacity:1;transform:translate(-50%,-50%) scale(5.2) rotate(560deg)}
+    68%{opacity:1;transform:translate(-50%,-50%) scale(4.8) rotate(575deg)}
+    100%{opacity:0;transform:translate(-50%,80vh) scale(4.8) rotate(600deg)}}
+  @keyframes rise{0%{transform:translateY(0) scale(.6);opacity:1}100%{transform:translateY(-115vh) scale(1.3);opacity:0}}
+
+  @media (prefers-reduced-motion:reduce){
+    .halmae *,.halmae.show .h-stage{animation:none!important}
+    .h-slipper,.h-hearts{display:none}
+    .bubble,.toast{transition:none}
+  }
+
+  @media (max-width:520px){ .nav a{padding:8px 9px;font-size:13px} .brand{font-size:17px} }
+  .ad-slot{position:relative;margin-top:16px;border-radius:16px;border:1.5px dashed #C5CCD5;background:#F7F8FA;min-height:92px;display:grid;place-items:center;text-align:center;padding:18px}
+  .ad-tag{position:absolute;top:8px;left:10px;font-size:11px;font-weight:800;color:#8A919B;background:#fff;border-radius:6px;padding:2px 6px;box-shadow:inset 0 0 0 1px var(--hair)}
+  .ad-body{font-size:13px;font-weight:700;color:#8A919B;line-height:1.5}
+  .ad-body small{display:block;font-weight:500;font-size:12px}
+
+  .app{grid-template-columns:minmax(0,1fr)}
+  @media (min-width:960px){ .app{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
+  .app > *{min-width:0}
+  .col > .panel + .panel, .col > * + *{margin-top:16px}
+  .hello{display:grid;grid-template-columns:84px 1fr;gap:14px;align-items:center}
+  .hello .report-avatar{width:84px;height:84px}
+  .hello .report-avatar svg{width:80px;height:80px}
+  .hello p{margin:0;font-family:var(--comic);font-size:20px;line-height:1.35}
+  .hello small{display:block;font-family:var(--ui);font-size:13px;color:var(--ink-2);margin-top:4px}
+  .big4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:18px}
+  .big4 div{padding:0 12px;border-left:1px solid var(--hair)}
+  .big4 div:first-child{padding-left:0;border-left:0}
+  .big4 b{display:block;font-size:26px;font-weight:800;letter-spacing:-.6px}
+  .big4 span{font-size:12.5px;color:var(--ink-2)}
+  @media (max-width:520px){ .big4{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:14px} .big4 div:nth-child(3){padding-left:0;border-left:0} }
+  .meter{margin-top:18px}
+  .meter-row{display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-bottom:8px}
+  .meter-bar{height:10px;border-radius:5px;background:var(--paper);overflow:hidden}
+  .meter-bar i{display:block;height:100%;border-radius:5px;background:var(--good)}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .panel-head h2{margin:0}
+  .mini-seg{display:flex;background:var(--paper);border-radius:10px;padding:3px;gap:3px}
+  .mini-seg button{border:0;background:transparent;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700;color:var(--ink-2);cursor:pointer}
+  .mini-seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(22,24,29,.12)}
+  .bodymap{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
+  .bodymap svg{width:170px;height:auto}
+  @media (max-width:520px){ .bodymap{grid-template-columns:1fr;justify-items:center} }
+  .parts{display:grid;gap:8px;width:100%}
+  .part{display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:8px 10px;border-radius:10px;background:var(--paper)}
+  .part b{font-weight:800}
+  .part i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:-1px}
+  .week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:120px;margin-top:6px}
+  .day{display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+  .day .bar{width:100%;max-width:34px;border-radius:8px 8px 4px 4px;background:var(--level);min-height:4px}
+  .day .bar.zero{background:var(--paper)}
+  .day span{font-size:12px;color:var(--ink-2);font-weight:700}
+  .day.today span{color:var(--ink)}
+  .streak{font-size:14px;color:var(--ink-2);margin-top:12px}
+  .streak b{color:var(--ink)}
+  .list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+  .list li{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:12px;border-radius:12px;background:var(--paper)}
+  .list li b{font-size:15px}
+  .list li small{grid-column:1/-1;font-size:13px;color:var(--ink-2)}
+  .list li em{font-style:normal;font-weight:800;font-size:15px}
+  .table{width:100%;border-collapse:collapse;font-size:14px}
+  .table th{font-size:12.5px;color:var(--ink-2);font-weight:700;text-align:right;padding:0 0 8px}
+  .table th:first-child,.table td:first-child{text-align:left}
+  .table td{padding:10px 0;border-top:1px solid var(--hair);text-align:right;font-weight:600}
+  .empty{text-align:center;padding:26px 10px}
+  .empty p{margin:10px 0 16px;color:var(--ink-2);line-height:1.6}
+  .muted{font-size:13px;color:var(--ink-2)}
+
+  /* ══ 디자인 v2 ══════════════════════════════ */
+  :root{--paper:#F2F4F7;--level:#3557F5;--good:#17B26A;--bad:#F04438;--radius-l:28px}
+  body{background:var(--paper)}
+  .top{position:sticky;top:0;z-index:30;max-width:none;margin:0;gap:14px;
+    padding:14px max(24px,calc((100vw - 1240px)/2 + 24px));
+    background:rgba(242,244,247,.86);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px)}
+  .brand{text-decoration:none;color:var(--ink);font-size:19px}
+  .top .nav{margin-left:auto}
+  .nav a{display:flex;align-items:center;gap:7px;padding:9px 14px}
+  .nav svg{width:18px;height:18px}
+  .persona-chip{border:0;border-radius:999px;padding:9px 14px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;
+    background:#FFE14D;color:#16181D;white-space:nowrap}
+  .persona-chip.is-coach{background:#E6ECFF;color:#2443D6}
+  .tabbar{display:none}
+  @media (max-width:720px){
+    .top{padding:12px 16px}
+    .top .nav{display:none}
+    .persona-chip{margin-left:auto}
+    .tabbar{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;z-index:40;
+      background:rgba(255,255,255,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+      border-top:1px solid var(--hair);padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+    .tabbar a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:11.5px;font-weight:700;color:#8A919B;text-decoration:none}
+    .tabbar a.on{color:var(--ink)}
+    .tabbar a.on svg{color:var(--level)}
+    .tabbar svg{width:24px;height:24px}
+    body{padding-bottom:88px}
+  }
+  .panel{border-radius:var(--radius-l);padding:24px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .panel h2,.panel-head h2{font-size:17px;font-weight:800;color:var(--ink);letter-spacing:-.3px}
+  details.panel summary{font-size:16px}
+  .cam{border-radius:var(--radius-l);box-shadow:0 12px 32px rgba(16,24,40,.14)}
+  .cam::after{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;background:linear-gradient(rgba(10,12,16,0),rgba(10,12,16,.55));pointer-events:none}
+  .cam .badge,.cam .hud-count,.cam .hud-timer,.cam .toast{z-index:2}
+  .cam-edge{border-radius:var(--radius-l)}
+  .btn{border-radius:16px;transition:transform .12s}
+  .btn:active{transform:scale(.97)}
+  .seg{border-radius:14px}
+  .bubble.good{background:var(--good)} .bubble.bad{background:var(--bad)}
+  [data-persona="coach"] .report-avatar{background:#E6ECFF}
+  [data-persona="coach"] .pick{background:#E6ECFF}
+  [data-persona="coach"] .pick small{color:#2443D6}
+  [data-persona="coach"] .card .say{background:#EEF2FF;font-family:var(--ui);font-weight:700}
+  [data-persona="coach"] .report-quote,[data-persona="coach"] .hello p,[data-persona="coach"] .pick p{font-family:var(--ui);font-weight:800;letter-spacing:-.5px}
+
+  /* 코치 알림 카드 */
+  .coach{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translate(-50%,160%);z-index:55;
+    width:min(92vw,640px);background:#fff;border-radius:24px;padding:18px 20px;display:grid;grid-template-columns:56px 1fr;gap:14px;align-items:center;
+    box-shadow:0 20px 50px rgba(16,24,40,.22);transition:transform .35s cubic-bezier(.2,.9,.3,1.15);cursor:pointer}
+  .coach.show{transform:translate(-50%,0)}
+  .coach .ic svg{width:56px;height:56px;display:block}
+  .coach b{display:block;font-size:13px;font-weight:800;color:var(--bad)}
+  .coach.happy b{color:var(--good)}
+  .coach p{margin:2px 0 0;font-size:clamp(19px,3.4vw,28px);font-weight:800;letter-spacing:-.4px;line-height:1.3}
+  @media (max-width:720px){ .coach{bottom:calc(96px + env(safe-area-inset-bottom))} }
+
+  /* 첫 화면: 버전 고르기 */
+  .onb{position:fixed;inset:0;z-index:60;background:var(--paper);overflow:auto;display:none}
+  .onb.show{display:block}
+  .onb-in{max-width:900px;margin:0 auto;padding:clamp(28px,7vh,72px) 20px 40px}
+  .onb-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;margin-bottom:28px}
+  .onb h1{font-size:clamp(30px,5.4vw,48px);letter-spacing:-1.4px;line-height:1.15;margin:0;font-weight:900}
+  .onb .sub{color:var(--ink-2);margin:12px 0 30px;font-size:16px;line-height:1.6}
+  .onb-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:640px){ .onb-cards{grid-template-columns:1fr} }
+  .onb-card{border:0;text-align:left;border-radius:28px;padding:24px;cursor:pointer;display:flex;flex-direction:column;gap:12px;min-height:360px;
+    font:inherit;color:var(--ink);transition:transform .18s,box-shadow .18s}
+  .onb-card:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(16,24,40,.12)}
+  .onb-card.h{background:#FFE14D}
+  .onb-card.c{background:#fff;box-shadow:inset 0 0 0 2px #DCE3FF}
+  .onb-face{width:116px;height:116px;border-radius:50%;background:#fff;display:grid;place-items:center;overflow:hidden}
+  .onb-card.c .onb-face{background:#E6ECFF}
+  .onb-face svg{width:108px;height:108px;margin-top:10px}
+  .onb-card h2{font-size:28px;margin:6px 0 0;font-weight:900;letter-spacing:-.8px}
+  .onb-say{font-size:21px;line-height:1.35}
+  .onb-card.h .onb-say{font-family:var(--comic)}
+  .onb-card.c .onb-say{font-weight:800;color:#2443D6}
+  .onb-desc{font-size:15px;line-height:1.6;color:rgba(22,24,29,.72)}
+  .onb-go{margin-top:auto;text-align:center;background:var(--ink);color:#fff;border-radius:16px;padding:15px;font-weight:800;font-size:16px}
+  .onb-card.c .onb-go{background:#3557F5}
+  .onb-note{margin-top:18px;font-size:13px;color:var(--ink-2);text-align:center}
+
+  /* 아이폰 노치·홈 바 영역 */
+  .top{padding-top:calc(14px + env(safe-area-inset-top))}
+  @media (max-width:720px){ .top{padding-top:calc(12px + env(safe-area-inset-top))} }
+
+  .goal{display:flex;gap:14px;align-items:center;margin-top:20px;padding:14px;border-radius:18px;background:var(--paper)}
+  .ring{width:64px;height:64px;flex:none;transform:rotate(-90deg)}
+  .ring-bg{fill:none;stroke:#DCE1E7;stroke-width:8}
+  .ring-fg{fill:none;stroke:var(--good);stroke-width:8;stroke-linecap:round;stroke-dasharray:163.4;stroke-dashoffset:163.4;transition:stroke-dashoffset .6s}
+  .goal-txt b{display:block;font-size:16px} .goal-txt span{font-size:13px;color:var(--ink-2)}
+  .goal-pick{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .goal-pick button{border:0;border-radius:9px;padding:6px 10px;font:inherit;font-size:12.5px;font-weight:700;background:#fff;color:var(--ink-2);cursor:pointer}
+  .goal-pick button.on{background:var(--ink);color:#fff}
+  .lv{display:flex;gap:14px;align-items:center}
+  .lv-badge{width:64px;height:64px;border-radius:20px;background:#FFE14D;display:grid;place-items:center;font-weight:900;font-size:17px;flex:none}
+  [data-persona="coach"] .lv-badge{background:#E6ECFF;color:#2443D6}
+  .lv-main{flex:1;min-width:0} .lv-main b{display:block;font-size:20px;font-weight:900;margin-bottom:8px;letter-spacing:-.4px}
+  .lv-main .muted{display:block;margin-top:6px}
+  .badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:10px;margin-top:18px}
+  .bdg{border-radius:16px;background:var(--paper);padding:12px 8px;text-align:center}
+  .bdg .e{font-size:28px;line-height:1}
+  .bdg b{display:block;font-size:12.5px;margin-top:6px;line-height:1.3}
+  .bdg small{display:block;font-size:11px;color:var(--ink-2);margin-top:3px;line-height:1.35}
+  .bdg.off{opacity:.42;filter:grayscale(1)}
+  .pt-big{display:flex;align-items:baseline;gap:6px}
+  .pt-big b{font-size:44px;font-weight:900;letter-spacing:-1.5px} .pt-big span{font-size:20px;font-weight:800;color:#B88600}
+  .pt-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;font-size:14px;color:var(--ink-2)}
+  .pt-row .btn{min-height:44px;padding:10px 16px}
+  .pt-hist{list-style:none;margin:14px 0 0;padding:0}
+  .pt-hist li{display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--hair);font-size:14px}
+  .pt-hist li b{color:#B88600}
+  .pt-rules{margin-top:12px;font-size:13.5px;color:var(--ink-2)}
+  .pt-rules summary{cursor:pointer;font-weight:700;color:var(--ink)}
+  .pt-rules ul{margin:8px 0 0;padding-left:18px;line-height:1.7}
+  .share-img{width:100%;border-radius:18px;margin-top:14px;box-shadow:0 8px 24px rgba(16,24,40,.15)}
+
+  /* ══ 바로핏 브랜드 ══ */
+  .btn-primary{background:var(--level)}
+  .chip.on{background:var(--level)}
+  .report-avatar{background:#EEF2FF}
+  .report-avatar svg,.hello .report-avatar svg,.pick .report-avatar svg{margin-top:0;width:72%;height:72%}
+  .brand{gap:10px}
+  .hud-count b{color:#fff}
+  [hidden]{display:none!important}
+
+  .gchip{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;color:#fff;font-size:13px;font-weight:900;margin-right:8px;vertical-align:1px;background:#3557F5}
+  .gchip.g-S{background:linear-gradient(135deg,#3557F5,#7B5CFF)} .gchip.g-B{background:#17B26A} .gchip.g-C{background:#F79009} .gchip.g-D{background:#F04438}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="./"><svg class="brand-mark" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="9" fill="#3557F5"/><path d="M8.5 15.5l4.5 4.5 8.5-9" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>바로핏</a>
+  <nav class="nav" aria-label="메뉴"><a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10v4M6.5 7v10M17.5 7v10M21 10v4M6.5 12h11"/></svg><span>운동</span></a><a href="records.html" class="on" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5M3 20h18"/></svg><span>기록</span></a><a href="shop.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 10V7a3 3 0 016 0v3"/></svg><span>상점</span></a></nav>
+</header>
+<nav class="tabbar" aria-label="메뉴"><a href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10v4M6.5 7v10M17.5 7v10M21 10v4M6.5 12h11"/></svg><span>운동</span></a><a href="records.html" class="on" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5M3 20h18"/></svg><span>기록</span></a><a href="shop.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 10V7a3 3 0 016 0v3"/></svg><span>상점</span></a></nav>
+
+<main class="app" id="app">
+  <div class="col">
+    <section class="panel">
+      <div class="hello"><div class="report-avatar" id="avatar"></div><p id="hello"></p></div>
+      <div class="big4">
+        <div><b id="tMin">0분</b><span>오늘 운동 시간</span></div>
+        <div><b id="tSets">0</b><span>세트</span></div>
+        <div><b id="tEx">0가지</b><span>운동 종류</span></div>
+        <div><b id="tReps">0회</b><span>인정된 횟수</span></div>
+      </div>
+      <div class="goal">
+        <svg class="ring" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" class="ring-bg"/><circle cx="32" cy="32" r="26" class="ring-fg" id="goalRing"/></svg>
+        <div class="goal-txt"><b id="goalTxt">오늘 목표</b><span id="goalSub"></span>
+          <div class="goal-pick" id="goalPick"><button data-g="10">10분</button><button data-g="20">20분</button><button data-g="30">30분</button><button data-g="45">45분</button></div></div>
+      </div>
+      <div class="meter">
+        <div class="meter-row"><span>오늘 운동 자세</span><span id="tPctTxt">기록 없음</span></div>
+        <div class="meter-bar"><i id="tPctBar" style="width:0"></i></div>
+      </div>
+      <div class="meter" hidden>
+        <div class="meter-row"><span>오늘 앉은 자세</span><span id="sPctTxt">기록 없음</span></div>
+        <div class="meter-bar"><i id="sPctBar" style="width:0;background:var(--level)"></i></div>
+        <div class="muted" id="sNote" style="margin-top:6px"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>내 레벨과 배지</h2><span class="muted" id="badgeCount"></span></div>
+      <div class="lv"><div class="lv-badge" id="lvNum">Lv.1</div><div class="lv-main"><b id="lvName">새우등</b><div class="meter-bar"><i id="lvBar" style="width:0;background:#FFC800"></i></div><span class="muted" id="lvNext"></span></div></div>
+      <div class="badges" id="badges"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>운동한 부위</h2><div class="mini-seg" id="rangeSeg"><button data-r="today" class="on">오늘</button><button data-r="week">이번 주</button></div></div>
+      <div class="bodymap"><div id="bodySvg"></div><div class="parts" id="parts"></div></div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="panel" id="points">
+      <div class="panel-head"><h2>내 포인트</h2><a class="muted" href="shop.html#benefits">상점에서 쓰기</a></div>
+      <div class="pt-big"><b id="ptBal">0</b><span>P</span></div>
+      <div class="pt-row"><span id="ckState"></span><button class="btn btn-primary" id="ckBtn" type="button">출석 체크</button></div>
+      <ul class="pt-hist" id="ptHist"></ul>
+      <details class="pt-rules"><summary>포인트 받는 방법</summary>
+        <ul><li>매일 출석 체크 10P, 7일 연속 출석 보너스 50P</li><li>운동 1분당 1P (한 번에 최대 60P), 루틴 완료 30P, 바른 자세 90% 이상 20P</li>
+        <li>새 배지마다 50P</li><li>하루 최대 300P까지 받을 수 있어요</li></ul></details>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>최근 7일 운동 시간</h2></div>
+      <div class="week" id="week"></div>
+      <div class="streak" id="streak"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>최근 운동</h2></div>
+      <ul class="list" id="recent"></ul>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>종목별 기록</h2></div>
+      <table class="table" id="byEx"></table>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>공유와 백업</h2></div>
+      <div class="actions" style="margin-top:0">
+        <button class="btn btn-primary" id="shareBtn" type="button">오늘 기록 자랑하기</button>
+        <button class="btn" id="exportBtn" type="button">기록 내보내기</button>
+        <button class="btn" id="importBtn" type="button">기록 불러오기</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="muted" style="margin:12px 0 0;line-height:1.55">기록은 이 기기 안에만 저장돼요. 휴대폰을 바꾸기 전에 ‘기록 내보내기’로 파일을 저장해 두고, 새 기기에서 ‘기록 불러오기’를 누르면 그대로 옮겨져요.</p>
+    </section>
+
+    <div class="ad-slot" aria-label="광고 자리"><span class="ad-tag">광고</span><div class="ad-body">광고가 들어갈 자리예요<small>구글 애드센스 승인을 받으면 여기에 광고 코드를 붙여 넣어요</small></div></div>
+  </div>
+</main>
+
+<script src="common.js"></script>
+<script>
+// ===== 바로핏 코치 알림 =====
+(function () {
+  document.documentElement.setAttribute("data-persona", "coach");
+  // 결과 아이콘 (좋음: 체크, 아쉬움: 상승 화살표)
+  function svg(mood) {
+    return mood === "happy"
+      ? '<svg class="h-face" viewBox="0 0 208 214" aria-hidden="true"><circle cx="104" cy="107" r="88" fill="#3557F5"/><path d="M64 110l28 28 54-58" stroke="#fff" stroke-width="18" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      : '<svg class="h-face" viewBox="0 0 208 214" aria-hidden="true"><circle cx="104" cy="107" r="88" fill="#16181D"/><path d="M60 140l34-34 22 22 36-40" stroke="#fff" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M126 86h28v28" stroke="#fff" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  function icon(mood) {
+    return mood === "happy"
+      ? '<svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="28" fill="#E8F7EF"/><path d="M17 29l7 7 15-16" stroke="#17B26A" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      : '<svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="28" fill="#FEEDEB"/><path d="M28 15v17" stroke="#F04438" stroke-width="5.5" stroke-linecap="round"/><circle cx="28" cy="41" r="3.6" fill="#F04438"/></svg>';
+  }
+  var el = null, tm = null;
+  function show(text, mood, ms) {
+    if (!el) { el = document.createElement("div"); el.setAttribute("role", "status"); el.setAttribute("aria-live", "assertive"); el.addEventListener("click", function () { el.classList.remove("show"); }); document.body.appendChild(el); }
+    el.className = "coach" + (mood === "happy" ? " happy" : "");
+    el.innerHTML = '<div class="ic">' + icon(mood) + '</div><div><b>' + (mood === "happy" ? "좋아요" : "자세 알림") + '</b><p></p></div>';
+    el.querySelector("p").textContent = text;
+    requestAnimationFrame(function () { el.classList.add("show"); });
+    clearTimeout(tm); tm = setTimeout(function () { el.classList.remove("show"); }, Math.min(ms || 3000, 4200));
+  }
+  var labels = document.querySelectorAll("[data-h][data-c]");
+  for (var i = 0; i < labels.length; i++) labels[i].textContent = labels[i].getAttribute("data-c");
+  window.__coach = { svg: svg, show: show, persona: function () { return "coach"; }, open: function () {}, faces: function () {} };
+})();
+</script>
+<script type="module">
+const isCoach = () => !!(window.__coach && window.__coach.persona() === "coach");
+const $ = id => document.getElementById(id);
+let settings = { dialect: "gs" };
+try { Object.assign(settings, JSON.parse(localStorage.getItem("barofit") || "{}")); } catch (e) {}
+// ===== 할매 얼굴 (원본 캐릭터, SVG) =====
+function halmaeSVG(mood, raw) {
+  if (!raw && isCoach()) return window.__coach.svg(mood);
+  const hairBack = [[52,74,24],[76,52,26],[104,44,27],[132,52,26],[156,74,24],[42,102,20],[166,102,20]]
+    .map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#D7D9E0" stroke="#16181D" stroke-width="4"/>`).join("");
+  const fringe = [[72,74,15],[92,66,16],[114,66,16],[134,74,15]]
+    .map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#ECEDF2" stroke="#16181D" stroke-width="3.5"/>`).join("");
+  const angry = `
+    <path d="M60 94 L92 106" stroke="#16181D" stroke-width="9" stroke-linecap="round"/>
+    <path d="M148 94 L116 106" stroke="#16181D" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="83" cy="119" r="5" fill="#16181D"/><circle cx="125" cy="119" r="5" fill="#16181D"/>
+    <path d="M78 150 Q104 132 130 150 Q130 178 104 180 Q78 178 78 150Z" fill="#7A1F2B" stroke="#16181D" stroke-width="4"/>
+    <path d="M90 168 Q104 158 118 168 Q112 177 104 177 Q96 177 90 168Z" fill="#F07A8A"/>
+    <path d="M86 150 h36" stroke="#fff" stroke-width="5" stroke-linecap="round"/>`;
+  const happy = `
+    <path d="M66 100 Q80 92 94 100" stroke="#16181D" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M114 100 Q128 92 142 100" stroke="#16181D" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M74 122 Q83 110 92 122" stroke="#16181D" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M116 122 Q125 110 134 122" stroke="#16181D" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <circle cx="64" cy="146" r="11" fill="#FF8FA3" opacity=".75"/><circle cx="144" cy="146" r="11" fill="#FF8FA3" opacity=".75"/>
+    <path d="M84 148 Q104 174 124 148 Z" fill="#7A1F2B" stroke="#16181D" stroke-width="4" stroke-linejoin="round"/>`;
+  return `<svg class="h-face" viewBox="0 0 208 214" aria-hidden="true">
+    ${hairBack}
+    <ellipse cx="104" cy="128" rx="62" ry="66" fill="#FFD7B5" stroke="#16181D" stroke-width="4.5"/>
+    ${fringe}
+    <path d="M86 86 q8 -4 16 0 M106 86 q8 -4 16 0" stroke="#C9967A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <circle cx="83" cy="119" r="18" fill="rgba(255,255,255,.35)" stroke="#16181D" stroke-width="4.5"/>
+    <circle cx="125" cy="119" r="18" fill="rgba(255,255,255,.35)" stroke="#16181D" stroke-width="4.5"/>
+    <path d="M101 117 h6" stroke="#16181D" stroke-width="4.5" stroke-linecap="round"/>
+    ${mood === "happy" ? happy : angry}
+    <path d="M62 158 q7 6 4 13 M146 158 q-7 6 -4 13" stroke="#C9967A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <circle cx="150" cy="64" r="9" fill="#FF3D7F" stroke="#16181D" stroke-width="3"/>
+    <circle cx="150" cy="64" r="3" fill="#FFE14D"/>
+  </svg>`;
+}
+
+
+
+const pad2 = n => String(n).padStart(2, "0");
+const dayStr = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+let LOG = [];
+try { LOG = JSON.parse(localStorage.getItem("barofit-log") || "[]"); } catch (e) {}
+
+// 기록이 없을 때 화면을 미리 볼 수 있는 예시 기록 (저장되지 않음)
+function demoLog() {
+  const out = [], now = new Date();
+  const mk = (daysAgo, routine, items, min) => { const d = new Date(now); d.setDate(d.getDate() - daysAgo); out.push({ type: "workout", date: dayStr(d), start: d.getTime(), durationSec: min * 60, routine, items }); };
+  const it = (ex, name, group, sets, hold) => ({ ex, name, group, hold: !!hold, target: hold ? { holdSec: hold } : { reps: 12 }, sets });
+  const st = (good, bad, errs = {}) => ({ good, bad, partial: 0, hold: 0, errors: errs });
+  mk(0, "초급 전신", [it("squat", "스쿼트", "하체", [st(11, 1, { lean: 1 }), st(10, 2, { lean: 2 }), st(12, 0)]), it("pushup", "푸시업", "가슴", [st(8, 2, { sag: 2 }), st(9, 1, { sag: 1 }), st(7, 3, { sag: 3 })]),
+    it("plank", "플랭크", "코어", [{ good: 0, bad: 0, partial: 0, hold: 30, errors: {} }, { good: 0, bad: 0, partial: 0, hold: 24, errors: { sag: 1 } }], 30)], 21);
+  mk(1, "상체 데이", [it("row", "벤트오버 로우", "등", [st(10, 0), st(9, 1, { standUp: 1 }), st(10, 0)]), it("press", "숄더 프레스", "어깨", [st(9, 1, { archback: 1 }), st(10, 0), st(8, 2, { archback: 2 })]), it("curl", "바이셉 컬", "팔", [st(11, 1, { swing: 1 }), st(10, 2, { swing: 2 })])], 28);
+  mk(3, "하체 데이", [it("squat", "스쿼트", "하체", [st(12, 0), st(11, 1, { knees: 1 }), st(12, 0), st(10, 2, { lean: 2 })]), it("rdl", "루마니안 데드리프트", "하체", [st(10, 0), st(9, 1, { kneeBend: 1 })])], 32);
+  mk(4, "10분 순삭", [it("squat", "스쿼트", "하체", [st(15, 0), st(14, 1)]), it("pushup", "푸시업", "가슴", [st(9, 1), st(10, 0)])], 11);
+  if (false) out.push({ type: "sitting", date: dayStr(d0), start: d0.getTime() - 9000000, durationSec: 9000, goodPct: 78, alerts: 5, problems: { neck: 600, drop: 300, tilt: 50, torso: 0 } });
+  return out;
+}
+
+const GROUPS = ["하체", "가슴", "등", "어깨", "팔", "코어", "유산소"];
+const COLORS = ["#DCE1E7", "#B8E6CF", "#5FC896", "#1FA971"];
+const level = n => n <= 0 ? 0 : n <= 3 ? 1 : n <= 8 ? 2 : 3;
+const ERR_KO = { depth: "덜 앉음", range: "가동 범위 부족", lean: "상체 숙임", knees: "무릎 모임", sag: "허리 처짐", pike: "엉덩이 들림",
+  kneeBend: "무릎 과하게 굽힘", archback: "허리 꺾임", tooHigh: "팔 너무 높이 듦", swing: "반동 사용", standUp: "상체 세움",
+  swingBack: "상체 젖힘", kip: "몸 흔들기", elbowDrift: "팔꿈치 움직임", squatty: "엉덩이 너무 낮춤", tooFast: "너무 빠름", uneven: "양팔 높이 차이",
+  refDepth: "모범 동작보다 얕음", refLean: "모범 동작보다 상체 흔들림", refShape: "모범 동작과 다름" };
+const HELLO = {
+  gs: { none: "오늘은 운동 안 했나! 엉덩이 무겁데이!", did: p => `오늘 ${p} 했네, 잘했데이!`, streak: n => `${n}일 연속이다, 억수로 장하데이!` },
+  jl: { none: "오늘은 운동 안 했냐! 엉덩이 무겁다잉!", did: p => `오늘 ${p} 했구먼, 잘했다잉!`, streak: n => `${n}일 연속이여, 겁나게 장하다잉!` },
+  sd: { none: "오늘은 운동 안 했니! 엉덩이 무겁다!", did: p => `오늘 ${p} 했구나, 잘했다!`, streak: n => `${n}일 연속이다, 아주 장하다!` }
+};
+
+HELLO.coach = { none: "오늘은 아직 운동 기록이 없어요. 가볍게 10분만 해볼까요?", did: p => `오늘 ${p} 운동을 했어요. 잘하셨어요!`, streak: n => `${n}일 연속 운동 중이에요.` };
+function bodySVG(cnt) {
+  const c = g => COLORS[level(cnt[g] || 0)];
+  return `<svg viewBox="0 0 220 230" role="img" aria-label="운동한 부위 그림">
+    <g stroke="#16181D" stroke-width="2.5" stroke-linejoin="round">
+      <circle cx="62" cy="22" r="14" fill="#fff"/>
+      <rect x="30" y="40" width="22" height="20" rx="9" fill="${c("어깨")}"/><rect x="72" y="40" width="22" height="20" rx="9" fill="${c("어깨")}"/>
+      <rect x="44" y="42" width="36" height="34" rx="8" fill="${c("가슴")}"/>
+      <rect x="47" y="78" width="30" height="34" rx="8" fill="${c("코어")}"/>
+      <rect x="22" y="62" width="16" height="56" rx="8" fill="${c("팔")}"/><rect x="86" y="62" width="16" height="56" rx="8" fill="${c("팔")}"/>
+      <rect x="44" y="114" width="17" height="90" rx="8" fill="${c("하체")}"/><rect x="63" y="114" width="17" height="90" rx="8" fill="${c("하체")}"/>
+      <circle cx="166" cy="22" r="14" fill="#fff"/>
+      <rect x="134" y="40" width="22" height="20" rx="9" fill="${c("어깨")}"/><rect x="176" y="40" width="22" height="20" rx="9" fill="${c("어깨")}"/>
+      <rect x="148" y="42" width="36" height="70" rx="9" fill="${c("등")}"/>
+      <rect x="126" y="62" width="16" height="56" rx="8" fill="${c("팔")}"/><rect x="190" y="62" width="16" height="56" rx="8" fill="${c("팔")}"/>
+      <rect x="148" y="114" width="17" height="90" rx="8" fill="${c("하체")}"/><rect x="167" y="114" width="17" height="90" rx="8" fill="${c("하체")}"/>
+    </g>
+    <text x="62" y="224" text-anchor="middle" font-size="12" font-weight="700" fill="#5B616B">앞</text>
+    <text x="166" y="224" text-anchor="middle" font-size="12" font-weight="700" fill="#5B616B">뒤</text>
+  </svg>`;
+}
+
+function render(log, isDemo) {
+  const today = dayStr(new Date());
+  const W = log.filter(e => e.type === "workout"), S = log.filter(e => e.type === "sitting");
+  const todayW = W.filter(e => e.date === today), todayS = S.filter(e => e.date === today);
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6); const weekStart = dayStr(weekAgo);
+  const weekW = W.filter(e => e.date >= weekStart);
+
+  // 오늘 요약
+  let min = 0, sets = 0, reps = 0, good = 0, exSet = new Set();
+  todayW.forEach(s => { min += s.durationSec / 60; s.items.forEach(it => { exSet.add(it.ex); it.sets.forEach(st => { sets++; reps += st.good + st.bad; good += st.good; }); }); });
+  $("tMin").textContent = `${Math.round(min)}분`; $("tSets").textContent = sets; $("tEx").textContent = `${exSet.size}가지`; $("tReps").textContent = `${reps}회`;
+  const pct = reps ? Math.round(good / reps * 100) : null;
+  $("tPctTxt").textContent = pct == null ? "기록 없음" : `바른 자세 ${pct}%`; $("tPctBar").style.width = (pct || 0) + "%";
+  const sSec = todayS.reduce((a, s) => a + s.durationSec, 0), sGood = todayS.reduce((a, s) => a + s.durationSec * s.goodPct / 100, 0);
+  const sPct = sSec ? Math.round(sGood / sSec * 100) : null;
+  $("sPctTxt").textContent = sPct == null ? "기록 없음" : `바른 자세 ${sPct}%`; $("sPctBar").style.width = (sPct || 0) + "%";
+  $("sNote").textContent = sSec ? `오늘 ${Math.round(sSec / 60)}분 앉아 있었고, ${isCoach() ? "자세 알림을 " + todayS.reduce((a, s) => a + s.alerts, 0) + "번 받았어요." : "할매가 " + todayS.reduce((a, s) => a + s.alerts, 0) + "번 혼냈어요."}` : "앉은 자세 화면에서 세션을 끝내면 여기에 기록돼요.";
+
+  // 연속 기록
+  const days = new Set(W.map(e => e.date)); let streak = 0; const d = new Date();
+  if (!days.has(dayStr(d))) d.setDate(d.getDate() - 1);
+  while (days.has(dayStr(d))) { streak++; d.setDate(d.getDate() - 1); }
+
+  // 할매 인사
+  const H = isCoach() ? HELLO.coach : (HELLO[settings.dialect] || HELLO.gs);
+  const todayGroups = [...new Set(todayW.flatMap(s => s.items.map(i => i.group)))];
+  $("avatar").innerHTML = halmaeSVG(todayW.length ? "happy" : "angry");
+  $("hello").innerHTML = (todayW.length ? H.did(todayGroups.join(", ")) : H.none) + (streak >= 2 ? `<small>${H.streak(streak)}</small>` : "") + (isDemo ? `<small>지금은 예시 기록을 보여주고 있어요.</small>` : "");
+
+  // 부위
+  const renderParts = range => {
+    const src = range === "today" ? todayW : weekW, cnt = {};
+    src.forEach(s => s.items.forEach(it => cnt[it.group] = (cnt[it.group] || 0) + it.sets.length));
+    $("bodySvg").innerHTML = bodySVG(cnt);
+    $("parts").innerHTML = GROUPS.map(g => `<div class="part"><span><i style="background:${COLORS[level(cnt[g] || 0)]}"></i>${g}</span><b>${cnt[g] ? cnt[g] + "세트" : "안 함"}</b></div>`).join("");
+  };
+  renderParts("today");
+  $("rangeSeg").onclick = e => { const b = e.target.closest("button"); if (!b) return; $("rangeSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); renderParts(b.dataset.r); };
+
+  // 최근 7일
+  const wd = ["일", "월", "화", "수", "목", "금", "토"], bars = [];
+  for (let i = 6; i >= 0; i--) { const x = new Date(); x.setDate(x.getDate() - i); const k = dayStr(x); bars.push({ k, label: i === 0 ? "오늘" : wd[x.getDay()], m: W.filter(e => e.date === k).reduce((a, s) => a + s.durationSec / 60, 0) }); }
+  const maxM = Math.max(30, ...bars.map(b => b.m));
+  $("week").innerHTML = bars.map(b => `<div class="day${b.label === "오늘" ? " today" : ""}" title="${Math.round(b.m)}분"><div class="bar${b.m ? "" : " zero"}" style="height:${Math.max(4, b.m / maxM * 90)}px"></div><span>${b.label}</span></div>`).join("");
+  const weekMin = Math.round(bars.reduce((a, b) => a + b.m, 0)), weekDays = bars.filter(b => b.m).length;
+  $("streak").innerHTML = `이번 주 <b>${weekDays}일, ${weekMin}분</b> 운동했어요.` + (streak ? ` 지금 <b>${streak}일 연속</b>이에요.` : "");
+
+  // 최근 운동
+  const recent = W.slice().sort((a, b) => b.start - a.start).slice(0, 8);
+  $("recent").innerHTML = recent.length ? recent.map(s => {
+    let r = 0, g = 0, n = 0; s.items.forEach(it => it.sets.forEach(st => { n++; r += st.good + st.bad; g += st.good; }));
+    const dt = new Date(s.start), when = s.date === today ? "오늘" : `${dt.getMonth() + 1}월 ${dt.getDate()}일`;
+    return `<li><b>${s.grade ? `<span class="gchip g-${s.grade}">${s.grade}</span>` : ""}${s.routine || s.items.map(i => i.name).join(", ")}</b><em>${r ? Math.round(g / r * 100) + "%" : "–"}</em><small>${when}, ${Math.max(1, Math.round(s.durationSec / 60))}분, ${s.items.length}가지 ${n}세트${r ? `, ${r}회` : ""}</small></li>`;
+  }).join("") : `<li><b>아직 운동 기록이 없어요</b><small>운동 화면에서 루틴을 끝내면 여기에 쌓여요.</small></li>`;
+
+  // 종목별
+  const by = {};
+  W.forEach(s => s.items.forEach(it => {
+    const o = by[it.ex] || (by[it.ex] = { name: it.name, hold: it.hold, total: 0, good: 0, best: 0, errs: {} });
+    it.sets.forEach(st => { o.total += st.good + st.bad; o.good += st.good; o.best = Math.max(o.best, it.hold ? st.hold : st.good + st.bad); for (const k in st.errors) o.errs[k] = (o.errs[k] || 0) + st.errors[k]; });
+  }));
+  const rows = Object.values(by);
+  $("byEx").innerHTML = rows.length ? `<tr><th>종목</th><th>최고</th><th>바른 자세</th><th>자주 실수</th></tr>` + rows.map(o => {
+    const top = Object.keys(o.errs).sort((a, b) => o.errs[b] - o.errs[a])[0];
+    return `<tr><td>${o.name}</td><td>${o.hold ? o.best + "초" : o.best + "회"}</td><td>${o.hold ? "–" : (o.total ? Math.round(o.good / o.total * 100) + "%" : "–")}</td><td>${top ? ERR_KO[top] : "없음"}</td></tr>`;
+  }).join("") : `<tr><td class="muted">운동을 하면 종목별 최고 기록이 쌓여요.</td></tr>`;
+}
+
+if (!LOG.length || location.hash === "#demo") {
+  render(demoLog(), true);
+  if (!LOG.length && location.hash !== "#demo") {
+    const first = document.querySelector(".col .panel");
+    first.insertAdjacentHTML("afterbegin", `<div class="empty" style="padding:0 0 16px"><p>아직 저장된 기록이 없어서 예시 기록을 보여드려요. 운동을 한 번 끝내면 내 기록으로 바뀌어요.</p><a class="btn btn-primary" href="./" style="text-decoration:none;display:inline-flex;align-items:center">운동하러 가기</a></div>`);
+  }
+} else render(LOG, false);
+
+// ===== 오늘 목표 =====
+const today = dayStr(new Date());
+const todayMin = () => LOG.filter(e => e.type === "workout" && e.date === today).reduce((a, s) => a + s.durationSec / 60, 0);
+function renderGoal() {
+  const goal = settings.goalMin || 20, m = Math.round(todayMin()), pct = Math.min(1, m / goal);
+  $("goalRing").style.strokeDashoffset = 163.4 * (1 - pct);
+  $("goalTxt").textContent = pct >= 1 ? "오늘 목표 달성!" : `오늘 목표 ${goal}분`;
+  $("goalSub").textContent = pct >= 1 ? `${m}분 운동했어요. 내일도 이어가요.` : `${m}분 했어요. ${goal - m}분 남았어요.`;
+  $("goalPick").querySelectorAll("button").forEach(b => b.classList.toggle("on", Number(b.dataset.g) === goal));
+}
+$("goalPick").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  settings.goalMin = Number(b.dataset.g);
+  try { const all = JSON.parse(localStorage.getItem("barofit") || "{}"); all.goalMin = settings.goalMin; localStorage.setItem("barofit", JSON.stringify(all)); } catch (er) {}
+  renderGoal();
+});
+renderGoal();
+
+// ===== 레벨과 배지 =====
+function renderLevel() {
+  if (!window.HM) return;
+  const st = HM.stats(LOG), lv = HM.level(st.xp), got = HM.unlocked();
+  $("lvNum").textContent = `Lv.${lv.lv}`; $("lvName").textContent = lv.name; $("lvBar").style.width = lv.pct + "%";
+  $("lvNext").textContent = lv.next ? `다음 레벨 ‘${lv.nextName}’까지 ${HM.fmt(lv.next - lv.xp)} 경험치 남았어요` : "최고 레벨이에요!";
+  $("badgeCount").textContent = `${got.length} / ${HM.BADGES.length}`;
+  $("badges").innerHTML = HM.BADGES.map(b => `<div class="bdg${got.includes(b.id) ? "" : " off"}" title="${b.desc}"><div class="e">${b.icon}</div><b>${b.name}</b><small>${b.desc}</small></div>`).join("");
+}
+renderLevel();
+
+// ===== 포인트 =====
+function renderPoints() {
+  if (!window.HM) return;
+  const w = HM.wallet();
+  $("ptBal").textContent = HM.fmt(w.balance);
+  const can = HM.canCheckin();
+  $("ckState").textContent = can ? "오늘 출석 체크를 아직 안 했어요" : `오늘 출석 완료${w.checkinStreak > 1 ? `, ${w.checkinStreak}일 연속` : ""}`;
+  $("ckBtn").disabled = !can; $("ckBtn").textContent = can ? "출석하고 10P 받기" : "출석 완료";
+  const t = ts => { const d = new Date(ts); return d.toDateString() === new Date().toDateString() ? "오늘" : `${d.getMonth() + 1}/${d.getDate()}`; };
+  $("ptHist").innerHTML = w.history.length ? w.history.slice(0, 6).map(h => `<li><span>${t(h.t)} ${h.reason}</span><b>+${h.p}P</b></li>`).join("") : `<li><span>아직 받은 포인트가 없어요</span><b></b></li>`;
+}
+$("ckBtn").addEventListener("click", () => { if (!window.HM) return; const g = HM.checkin(); renderPoints(); if (g.length) HM.celebrate({ gains: g, badges: [], level: null }); });
+renderPoints();
+setInterval(renderPoints, 4000);
+
+// ===== 오늘 기록 이미지 공유 =====
+function svgToImage(svgText) {
+  return new Promise(res => {
+    const img = new Image(); img.onload = () => res(img); img.onerror = () => res(null);
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgText.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '));
+  });
+}
+async function makeCard() {
+  const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d");
+  const coach = isCoach(), F = '"Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif';
+  g.fillStyle = coach ? "#E6ECFF" : "#FFE14D"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#FFFFFF"; const r = 56, x = 60, y = 420, w = W - 120, h = H - 500;
+  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.fill();
+  const face = await svgToImage(halmaeSVG("happy"));
+  if (face) g.drawImage(face, W / 2 - 170, 60, 340, 350);
+  const tw = LOG.filter(e => e.type === "workout" && e.date === today); let min = 0, sets = 0, reps = 0, good = 0, groups = new Set();
+  tw.forEach(s => { min += s.durationSec / 60; s.items.forEach(it => { groups.add(it.group); it.sets.forEach(st => { sets++; reps += st.good + st.bad; good += st.good; }); }); });
+  const d = new Date(); g.fillStyle = "#5B616B"; g.font = `700 36px ${F}`; g.textAlign = "center";
+  g.fillText(`${d.getMonth() + 1}월 ${d.getDate()}일 오늘의 기록`, W / 2, 510);
+  const lv = window.HM ? HM.level(HM.stats(LOG).xp) : null;
+  const tiles = [[`${Math.round(min)}분`, "운동 시간"], [`${sets}세트`, "세트"], [reps ? `${Math.round(good / reps * 100)}%` : "–", "바른 자세"], [lv ? `Lv.${lv.lv}` : "–", lv ? lv.name : "레벨"]];
+  tiles.forEach((t, i) => {
+    const cx = 120 + (i % 2) * 450, cy = 580 + Math.floor(i / 2) * 230;
+    g.fillStyle = "#F2F4F7"; g.beginPath(); g.roundRect ? g.roundRect(cx, cy, 390, 200, 32) : g.rect(cx, cy, 390, 200); g.fill();
+    g.fillStyle = "#16181D"; g.font = `900 84px ${F}`; g.textAlign = "left"; g.fillText(t[0], cx + 36, cy + 112);
+    g.fillStyle = "#5B616B"; g.font = `700 32px ${F}`; g.fillText(t[1], cx + 38, cy + 164);
+  });
+  g.textAlign = "center"; g.fillStyle = "#16181D"; g.font = `800 44px ${F}`;
+  const H2 = isCoach() ? HELLO.coach : (HELLO[settings.dialect] || HELLO.gs);
+  g.fillText(tw.length ? H2.did([...groups].join(", ")) : H2.none, W / 2, 1110);
+  g.fillStyle = "#8A919B"; g.font = `700 30px ${F}`; g.fillText("바로핏으로 기록했어요", W / 2, 1200);
+  return c;
+}
+$("shareBtn").addEventListener("click", async () => {
+  const c = await makeCard();
+  const blob = await new Promise(res => { try { c.toBlob(res, "image/png"); } catch (e) { res(null); } });
+  const file = blob ? new File([blob], "바로핏-오늘기록.png", { type: "image/png" }) : null;
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: "오늘의 자세 기록", text: "바로핏으로 오늘 운동했어요!" }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  let url = ""; try { url = c.toDataURL("image/png"); } catch (e) {}
+  HM.sheet(`<h3>오늘 기록 카드</h3><p>이미지를 길게 눌러 사진에 저장하거나 친구에게 보내 보세요.</p>${url ? `<img class="share-img" src="${url}" alt="오늘 기록 카드">` : "<p>이 기기에서는 이미지를 만들지 못했어요.</p>"}<button class="go" data-close>닫기</button>`);
+});
+
+// ===== 백업 / 복원 =====
+const KEYS = ["barofit", "barofit-log", "barofit-points", "barofit-badges", "barofit-level", "barofit-myroutines"];
+$("exportBtn").addEventListener("click", () => {
+  const data = { app: "barofit", version: 1, savedAt: new Date().toISOString() };
+  KEYS.forEach(k => { try { data[k] = JSON.parse(localStorage.getItem(k)); } catch (e) { data[k] = null; } });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
+  a.download = `바로핏-기록-${today}.json`; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+});
+$("importBtn").addEventListener("click", () => $("importFile").click());
+$("importFile").addEventListener("change", async e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  let data = null; try { data = JSON.parse(await f.text()); } catch (er) {}
+  if (!data || data.app !== "barofit") { HM.sheet(`<h3>불러오지 못했어요</h3><p>바로핏에서 내보낸 기록 파일인지 확인해 주세요.</p><button class="go" data-close>확인</button>`); return; }
+  HM.sheet(`<h3>기록을 불러올까요?</h3><p>지금 이 기기에 있는 기록이 파일 속 기록으로 바뀌어요.</p><button class="go" id="impGo">불러오기</button><button class="later" data-close>취소</button>`, (bg, close) => {
+    bg.querySelector("#impGo").addEventListener("click", () => { KEYS.forEach(k => { if (data[k] != null) localStorage.setItem(k, JSON.stringify(data[k])); }); close(); location.reload(); });
+  });
+  e.target.value = "";
+});
+
+try { window.__coach && window.__coach.faces(m => halmaeSVG(m, true)); } catch (e) {}
+</script>
+</body>
+</html>
