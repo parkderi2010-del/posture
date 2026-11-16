@@ -149,6 +149,7 @@
     font-size:clamp(34px,7.4vw,74px);letter-spacing:-.5px;transform:rotate(-3deg);
     -webkit-text-stroke:9px var(--ink);paint-order:stroke fill;text-shadow:7px 7px 0 var(--h-pink);word-break:keep-all}
   .halmae.happy .h-text{text-shadow:7px 7px 0 var(--h-yellow-2)}
+  .h-text.long{font-size:clamp(28px,5.4vw,58px);-webkit-text-stroke-width:7px;max-width:16em}
   .h-text span{display:inline-block;animation:pop .35s cubic-bezier(.2,1.8,.4,1) both}
   .h-sticker{position:absolute;font-family:var(--comic);color:#fff;-webkit-text-stroke:6px var(--ink);paint-order:stroke fill;
     font-size:clamp(30px,6vw,56px);animation:pop .35s cubic-bezier(.2,1.8,.4,1) .15s both}
@@ -261,13 +262,36 @@
             <button data-val="beep">소리만</button>
             <button data-val="screen">화면만</button>
           </div>
-          <div class="field-note">도서관이나 독서실에서는 ‘화면만’을 고르거나 에어팟을 연결하세요.</div>
+          <div class="field-note">아이패드가 무음 모드면 소리가 나지 않아요. 도서관에서는 ‘화면만’을 고르거나 에어팟을 연결하세요.</div>
+        </div>
+        <div>
+          <div class="field-label">할매 고향</div>
+          <div class="seg" data-key="dialect">
+            <button data-val="gs">경상도</button>
+            <button data-val="jl">전라도</button>
+            <button data-val="sd">표준어</button>
+          </div>
         </div>
         <div>
           <div class="field-label">잔소리 맛</div>
           <div class="seg" data-key="flavor">
             <button data-val="mild">순한 맛</button>
             <button data-val="spicy">매운 맛</button>
+          </div>
+        </div>
+        <div>
+          <div class="field-label">매운 맛 잔소리 만들기</div>
+          <div class="seg" data-key="lineSource">
+            <button data-val="fixed">정해진 대사</button>
+            <button data-val="combo">무한 조합</button>
+            <button data-val="ai">AI 실시간</button>
+          </div>
+          <div class="field-note" id="sourceNote"></div>
+          <div id="aiBox" hidden style="margin-top:10px">
+            <label class="field-label" for="aiKey">Claude API 키</label>
+            <input id="aiKey" type="password" autocomplete="off" placeholder="sk-ant-로 시작하는 키" style="width:100%;font:inherit;font-size:15px;padding:12px;border-radius:12px;border:1px solid var(--hair);background:var(--paper)">
+            <div class="actions" style="margin-top:8px"><button class="btn" id="aiTest" type="button">AI 대사 새로 받기</button></div>
+            <div class="field-note" id="aiStatus">키는 이 아이패드에만 저장되고 GitHub에는 올라가지 않아요.</div>
           </div>
         </div>
         <div>
@@ -282,6 +306,10 @@
         <div>
           <label class="field-label" for="breakMin">쉬는 시간 알림 <small id="breakMinVal"></small></label>
           <input type="range" id="breakMin" min="0" max="120" step="10">
+        </div>
+        <div>
+          <button class="btn" id="soundTest" type="button">소리 테스트하기</button>
+          <div class="field-note" id="soundInfo">알림음 다음에 할매 목소리가 나오면 정상이에요.</div>
         </div>
       </div>
     </details>
@@ -302,31 +330,207 @@ const WASM_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}
 const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
 
 // ===== 설정 =====
-const DEFAULTS = { mode: "voice", flavor: "spicy", sens: 3, delay: 5, breakMin: 50 };
+const DEFAULTS = { mode: "voice", flavor: "spicy", dialect: "gs", lineSource: "combo", sens: 3, delay: 5, breakMin: 50 };
 let settings = { ...DEFAULTS };
 try { Object.assign(settings, JSON.parse(localStorage.getItem("posture-halmae") || "{}")); } catch (e) {}
 const saveSettings = () => { try { localStorage.setItem("posture-halmae", JSON.stringify(settings)); } catch (e) {} };
 
 // ===== 대사 =====
-const LINES = {
-  gentle: ["자세가 조금 흐트러졌어요", "고개가 앞으로 나왔어요", "허리를 펴볼까요?"],
-  spicy: {
-    neck: ["목이 거북이 다 됐네! 고개 들어라 이놈아!", "자라냐? 고개 집어넣어라!", "화면에 코 박겠다 이 녀석아!"],
-    drop: ["허리 펴! 새우냐?", "할미가 몇 번 말하냐! 똑바로 앉아!", "누가 책상에 엎드리랬어!"],
-    tilt: ["어깨 삐딱하다! 수평 맞춰라!", "기울어진 어깨 펴라 이놈아!"],
-    torso: ["의자에 눕지 말고 앉아라!", "등 펴라 이 녀석아!"]
+// 할매 고향(사투리)별 대사. 각 대사에는 고유 번호(id)가 붙어, 나중에 진짜 녹음 파일(voices/번호.mp3)로 바꿀 수 있어요.
+const PACKS = {
+  gs: { // 경상도
+    spicy: {
+      neck: ["아이고 이 문디 자슥아! 목이 거북이가 됐다 아이가! 고개 퍼뜩 들어라!", "니 자라가? 모가지 쭉 빼가 뭐하노! 집어넣어라 마!", "화면에 코 박겠다 이 썩을 놈아! 고개 쫌 들어라!"],
+      drop: ["허리 펴라 이 문디야! 니 새우가? 새우냐꼬!", "할매가 몇 번을 말하노! 똑바로 앉으라 안 카나!", "아이고 내 팔자야! 등때기가 할매보다 더 꼬부랑하네!"],
+      tilt: ["어깨가 와 그래 삐딱하노! 똑바로 안 하나 마!", "한쪽으로 쏠리가 뭐하노! 어깨 맞차라 이 자슥아!"],
+      torso: ["의자에 드러눕나 지금! 퍼뜩 일어나 앉아라!", "몸뚱이가 와 그래 자빠지노! 등 펴라 이 문디야!"]
+    },
+    mild: {
+      neck: ["아이고 우리 강생이, 고개 쪼매만 들어보자이."],
+      drop: ["허리 쪼매 펴보자, 응? 할매 말 들어라이."],
+      tilt: ["어깨 반듯하게 해보자이, 우리 강생이."],
+      torso: ["몸 기울었데이, 바로 앉자이."]
+    },
+    praise: ["옳지! 우리 강생이 잘한다!", "그래 그래, 그래 앉는 기다!", "아이고 이뿌데이, 그대로 있어라이!"],
+    break: ["엉덩이에 뿌리 내리겠다! 퍼뜩 일어나 기지개 함 켜라!", "물 한 잔 묵고 온나 이 자슥아!"],
+    calib: ["됐다! 이 자세 할매가 딱 기억했데이. 인자 지켜본다이!"],
+    test: ["할매 목소리 들리나? 잘 들리면 됐다 마!"],
+    report: { none: "오늘은 앉아 있지도 않았네. 내일은 쫌 앉아 봐라이.", great: "아이고 우리 강생이, 오늘 자세 억수로 좋았데이!", ok: "그럭저럭 했다마는 할매 눈에는 아직 멀었다!", bad: "이 문디 자슥아, 오늘 자세가 이기 뭐꼬! 내일 두고 보자!" }
   },
-  mild: {
-    neck: ["아가, 고개 살짝 들어볼까?", "목 아프겠다, 고개 들자~"],
-    drop: ["아가, 허리 쭉 펴보자~", "등이 동그랗네, 펴보자꾸나"],
-    tilt: ["어깨 수평 맞춰보자~"],
-    torso: ["몸이 기울었구나, 바로 앉자~"]
+  jl: { // 전라도
+    spicy: {
+      neck: ["워메 이 썩을 놈아! 목이 거북이가 되야부렀네! 고개 들어야!", "니 자라여? 모가지 쭉 빼고 뭐한다냐!", "화면에 코 박것다 이놈아! 고개 쪼까 들랑께!"],
+      drop: ["허리 펴랑께 이 썩을 놈아! 새우여 뭐여!", "할매가 몇 번을 말해야 쓰것냐! 똑바로 앉어!", "아따 등짝이 꼬부라져부렀네! 퍼뜩 펴랑께!"],
+      tilt: ["어깨가 왜 그라고 삐딱하다냐! 똑바로 혀!", "한쪽으로 쏠려갖고 뭐한다냐! 어깨 맞춰야!"],
+      torso: ["의자에 드러눕냐 시방! 퍼뜩 앉어!", "몸땡이가 왜 그라고 자빠졌다냐! 등 펴랑께!"]
+    },
+    mild: {
+      neck: ["아가, 고개 쪼까만 들어보자잉."],
+      drop: ["허리 쪼까 펴보자잉, 할매 말 들어야."],
+      tilt: ["어깨 반듯하게 혀보자잉."],
+      torso: ["몸이 기울었다잉, 바로 앉자."]
+    },
+    praise: ["오매 잘한다잉! 우리 새끼!", "그라제 그라제, 그라고 앉는 것이여!", "아따 이쁘다잉, 그대로 있어라!"],
+    break: ["엉덩이에 뿌리 내리것다! 일어나서 기지개 한번 켜랑께!", "물 한 잔 묵고 와라 이놈아!"],
+    calib: ["됐다잉! 이 자세 할매가 딱 기억혀놨다. 인자 지켜본다잉!"],
+    test: ["할매 목소리 들리냐? 잘 들리믄 된 것이여!"],
+    report: { none: "오늘은 앉아 있지도 않았구먼. 내일은 쪼까 앉아 봐라잉.", great: "오매 우리 새끼, 오늘 자세 겁나게 좋았다잉!", ok: "그럭저럭 했다만 할매 눈엔 아직 멀었어야!", bad: "이 썩을 놈아, 오늘 자세가 이것이 뭐다냐! 내일 두고 보자잉!" }
   },
-  praise: ["옳지~ 우리 강아지!", "그렇지! 그렇게 앉는 거야!", "아이고 잘한다~"],
-  break: ["엉덩이 무겁다! 일어나서 기지개 켜라!", "물 한잔 마시고 와라 이놈아!"]
+  sd: { // 표준어
+    spicy: {
+      neck: ["목이 거북이 다 됐네! 고개 들어라 이놈아!", "자라냐? 고개 집어넣어라!", "화면에 코 박겠다 이 녀석아!"],
+      drop: ["허리 펴! 새우냐?", "할미가 몇 번 말하냐! 똑바로 앉아!", "누가 책상에 엎드리랬어!"],
+      tilt: ["어깨 삐딱하다! 수평 맞춰라!", "기울어진 어깨 펴라 이놈아!"],
+      torso: ["의자에 눕지 말고 앉아라!", "등 펴라 이 녀석아!"]
+    },
+    mild: {
+      neck: ["아가, 고개 살짝 들어볼까?"],
+      drop: ["아가, 허리 쭉 펴보자~"],
+      tilt: ["어깨 수평 맞춰보자~"],
+      torso: ["몸이 기울었구나, 바로 앉자~"]
+    },
+    praise: ["옳지~ 우리 강아지!", "그렇지! 그렇게 앉는 거야!", "아이고 잘한다~"],
+    break: ["엉덩이 무겁다! 일어나서 기지개 켜라!", "물 한잔 마시고 와라 이놈아!"],
+    calib: ["이 자세 기억했다! 이제 할미가 지켜본다!"],
+    test: ["할미 목소리 들리냐? 잘 들리면 됐다!"],
+    report: { none: "오늘은 기록이 거의 없구나. 다음엔 좀 앉아 있어 보거라.", great: "아이고 우리 강아지, 오늘 자세 아주 훌륭했다!", ok: "그럭저럭 했다만 할미 눈엔 아직 멀었다.", bad: "이놈아, 오늘 자세가 이게 뭐냐! 내일은 더 매섭게 본다." }
+  }
 };
+const GENTLE = ["자세가 조금 흐트러졌어요", "고개가 앞으로 나왔어요", "허리를 펴볼까요?"];
 const STICKERS = { neck: "쾅!", drop: "퍽!", tilt: "삐빅!", torso: "어이!" };
+// 대사 하나 고르기 → { id, t }
+function pickLine(kind, problem) {
+  const d = PACKS[settings.dialect] ? settings.dialect : "gs";
+  let arr = PACKS[d][kind], key = kind;
+  if (problem && !Array.isArray(arr)) { arr = arr[problem] || arr.drop; key = `${kind}-${problem}`; }
+  const i = Math.floor(Math.random() * arr.length);
+  return { id: `${d}-${key}-${i + 1}`, t: arr[i] };
+}
 const pick = a => a[Math.floor(Math.random() * a.length)];
+
+// ===== 무한 조합 잔소리 =====
+// 감탄 + 병맛 비유 + 명령 + 마무리를 무작위로 섞어 매번 새로운 잔소리를 만듭니다. (인터넷·비용 없음)
+const COMBO = {
+  gs: {
+    open: ["아이고 마!", "어이구야!", "보소 보소!", "이 문디 자슥아!", "아이고 내 팔자야!", "참말로!"],
+    roast: {
+      neck: ["니 목은 셀카봉이가?", "거북이가 니 보고 형님 카겠다!", "모가지가 화면 뚫고 들어가겠다!", "기린도 니 목 보고 기절하겠다!", "목 늘어나가 빨랫줄 해도 되겠다!"],
+      drop: ["니 등은 물음표가?", "새우깡 봉지에서 방금 나왔나!", "등때기가 바나나 다 됐다!", "꼬부랑 할매인 내보다 니가 더 굽었다!", "허리가 낚싯바늘이가 뭐꼬!"],
+      tilt: ["어깨가 시소 타나!", "니 어깨는 피사의 사탑이가?", "한쪽 어깨로 쌀가마니 짊어졌나!", "어깨 기울어가 물 부으면 한쪽으로 다 흐르겠다!"],
+      torso: ["의자가 침대가?", "니 지금 안마의자 체험하나!", "몸뚱이가 와 그래 자빠지노!", "누가 보면 해수욕장 온 줄 알겠다!"]
+    },
+    cmd: {
+      neck: ["고개 퍼뜩 집어넣어라!", "턱 당기라 마!", "모가지 제자리 갖다 놔라!"],
+      drop: ["허리 쫙 펴라!", "엉덩이 붙이고 똑바로 앉아라!", "등때기 세워라 마!"],
+      tilt: ["어깨 수평 맞차라!", "양쪽 어깨 똑같이 해라!", "삐딱선 고만 타라!"],
+      torso: ["퍼뜩 일어나 앉아라!", "등 세우고 앉아라!", "의자에 눕지 마라!"]
+    },
+    close: ["이 문디야!", "할매 슬리퍼 날아간데이!", "말 안 들으면 저녁밥 없데이!", "한 번만 더 그래 봐라!"]
+  },
+  jl: {
+    open: ["워메!", "아따!", "오매 오매!", "이 썩을 놈아!", "징하다 징해!", "아이고메!"],
+    roast: {
+      neck: ["니 목이 셀카봉이여?", "거북이가 니 보고 형님 하것다!", "모가지가 화면 뚫고 들어가것다!", "기린도 니 목 보고 놀라 자빠지것다!", "목 늘어나서 빨랫줄 해도 쓰것다!"],
+      drop: ["니 등짝이 물음표여?", "새우깡 봉지서 방금 나왔냐!", "등짝이 바나나가 되야부렀네!", "꼬부랑 할매보다 니가 더 굽었어야!", "허리가 낚싯바늘이여 뭐여!"],
+      tilt: ["어깨가 시소 타냐!", "니 어깨가 피사의 사탑이여?", "한쪽 어깨로 쌀가마니 졌냐!", "어깨 기울어서 물 부으믄 한쪽으로 다 흐르것다!"],
+      torso: ["의자가 침대여?", "시방 안마의자 체험하냐!", "몸땡이가 왜 그라고 자빠졌다냐!", "누가 보믄 해수욕장 온 줄 알것다!"]
+    },
+    cmd: {
+      neck: ["고개 퍼뜩 집어넣어야!", "턱 당기랑께!", "모가지 제자리 돌려놔야!"],
+      drop: ["허리 쫙 펴랑께!", "엉덩이 붙이고 똑바로 앉어!", "등짝 세워야!"],
+      tilt: ["어깨 수평 맞춰야!", "양쪽 어깨 똑같이 혀!", "삐딱선 그만 타랑께!"],
+      torso: ["퍼뜩 일어나 앉어!", "등 세우고 앉으랑께!", "의자에서 눕지 말어!"]
+    },
+    close: ["이 썩을 놈아!", "할매 슬리퍼 날아간다잉!", "말 안 들으믄 저녁밥 없어야!", "한 번만 더 그래봐라잉!"]
+  },
+  sd: {
+    open: ["아이고!", "어이구야!", "세상에!", "이 녀석아!", "아이고 내 팔자야!"],
+    roast: {
+      neck: ["네 목은 셀카봉이냐?", "거북이가 너 보고 형님 하겠다!", "목이 화면 뚫고 들어가겠다!", "기린도 네 목 보고 기절하겠다!"],
+      drop: ["네 등은 물음표냐?", "새우깡 봉지에서 방금 나왔니!", "등이 바나나가 됐네!", "꼬부랑 할미보다 네가 더 굽었다!"],
+      tilt: ["어깨가 시소 타니!", "네 어깨는 피사의 사탑이냐?", "한쪽 어깨로 쌀가마니 졌니!"],
+      torso: ["의자가 침대냐?", "지금 안마의자 체험하니!", "누가 보면 해수욕장 온 줄 알겠다!"]
+    },
+    cmd: {
+      neck: ["고개 집어넣어라!", "턱 당겨라!", "목 제자리에 갖다 놔라!"],
+      drop: ["허리 쫙 펴라!", "엉덩이 붙이고 똑바로 앉아라!", "등 세워라!"],
+      tilt: ["어깨 수평 맞춰라!", "양쪽 어깨 똑같이 해라!", "삐딱하게 그만 앉아라!"],
+      torso: ["얼른 일어나 앉아라!", "등 세우고 앉아라!", "의자에서 눕지 마라!"]
+    },
+    close: ["이놈아!", "할미 슬리퍼 날아간다!", "말 안 들으면 저녁밥 없다!", "한 번만 더 그래 봐라!"]
+  }
+};
+const recentLines = [];
+function comboLine(problem) {
+  const C = COMBO[settings.dialect] || COMBO.gs, pr = C.roast[problem] ? problem : "drop";
+  let t = "", tries = 0;
+  do {
+    const parts = [];
+    if (Math.random() < 0.7) parts.push(pick(C.open));
+    parts.push(pick(C.roast[pr]));
+    parts.push(pick(C.cmd[pr]));
+    if (Math.random() < 0.45) parts.push(pick(C.close));
+    t = parts.join(" ");
+  } while (recentLines.includes(t) && ++tries < 10);
+  recentLines.push(t); if (recentLines.length > 12) recentLines.shift();
+  return { id: "gen", t };
+}
+
+// ===== AI 실시간 잔소리 (Claude) =====
+// 키는 이 기기의 브라우저에만 저장. 한 번에 문제별로 여러 개를 미리 받아두고 하나씩 꺼내 씀.
+const AI_MODEL = "claude-haiku-5-5";
+const aiQueue = { neck: [], drop: [], tilt: [], torso: [] };
+let aiBusy = false, aiDialect = null;
+const getKey = () => { try { return localStorage.getItem("posture-halmae-key") || ""; } catch (e) { return ""; } };
+const DIALECT_KO = { gs: "경상도", jl: "전라도", sd: "표준어(사투리 없이)" };
+async function refillAI(force = false) {
+  const key = getKey(); if (!key || aiBusy) return;
+  if (aiDialect !== settings.dialect) { for (const k in aiQueue) aiQueue[k] = []; aiDialect = settings.dialect; }
+  if (!force && Object.values(aiQueue).every(q => q.length >= 2)) return;
+  aiBusy = true; setAIStatus("AI가 새 잔소리를 쓰는 중…");
+  const system = `너는 자세 교정 앱 '자세 할매'의 대사 작가다. 앉은 자세가 흐트러진 사용자를 혼내는 욕쟁이 할머니 대사를 쓴다.
+병맛 개그로 웃기게: 과장된 비유, 엉뚱한 상황극, 예상 못한 비교, 요즘 밈 느낌. 매번 완전히 새롭고 서로 다른 비유를 써라.
+규칙:
+- ${DIALECT_KO[settings.dialect] || "경상도"} 말투로 쓴다.
+- 한 대사는 1~2문장, 40자 이내, 할머니가 소리치듯 느낌표를 쓴다.
+- '문디', '썩을 놈', '이놈아'처럼 정감 있는 할머니식 핀잔은 좋다.
+- 심한 비속어(씨발, 개새끼 등), 성적 표현, 외모·장애·성별·지역·인종·나이 비하, 실존 인물·브랜드 언급은 절대 쓰지 않는다.
+- 내용은 해당 자세 문제를 고치라는 잔소리에만 집중한다.
+- 출력은 JSON 객체 하나만. 설명 금지.`;
+  const user = `다음 형식으로 문제별 대사 6개씩 써줘.
+{"neck":[...거북목(고개가 앞으로 나옴)...],"drop":[...허리·등이 구부정함...],"tilt":[...어깨가 한쪽으로 기울어짐...],"torso":[...의자에 기대 눕듯 상체가 기울어짐...]}`;
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({ model: AI_MODEL, max_tokens: 1500, temperature: 1, system, messages: [{ role: "user", content: user }] })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error((data && data.error && data.error.message) || ("HTTP " + r.status));
+    const text = (data.content || []).map(c => c.text || "").join("");
+    const obj = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+    let n = 0;
+    for (const k in aiQueue) if (Array.isArray(obj[k])) obj[k].forEach(t => { if (typeof t === "string" && t.trim()) { aiQueue[k].push(t.trim().slice(0, 60)); n++; } });
+    setAIStatus(`AI 잔소리 ${totalAI()}개 준비됨 (방금 ${n}개 새로 받음)`);
+  } catch (e) {
+    setAIStatus("AI 잔소리를 받지 못했어요. 키와 결제 상태를 확인해 주세요. 그동안은 무한 조합 잔소리가 나와요. (" + (e.message || e) + ")");
+  }
+  aiBusy = false;
+}
+const totalAI = () => Object.values(aiQueue).reduce((a, q) => a + q.length, 0);
+function setAIStatus(t) { const el = document.getElementById("aiStatus"); if (el) el.textContent = t; }
+function aiLine(problem) {
+  const q = aiQueue[problem] || aiQueue.drop, t = q.shift();
+  refillAI();
+  if (t) { setAIStatus(`AI 잔소리 ${totalAI()}개 남음`); return { id: "gen", t }; }
+  return comboLine(problem);
+}
+// 매운 맛 호통 한 줄 고르기
+function spicyLine(problem) {
+  if (settings.lineSource === "ai" && getKey()) return aiLine(problem);
+  if (settings.lineSource === "combo" || settings.lineSource === "ai") return comboLine(problem);
+  return pickLine("spicy", problem);
+}
 const PROBLEM_KO = { neck: "거북목", drop: "구부정한 허리", tilt: "기울어진 어깨", torso: "기울어진 상체" };
 
 // ===== 할매 얼굴 (원본 캐릭터, SVG) =====
@@ -391,7 +595,24 @@ function bindSeg(key) {
   wrap.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; settings[key] = b.dataset.val; saveSettings(); render(); });
   render();
 }
-bindSeg("mode"); bindSeg("flavor");
+bindSeg("mode"); bindSeg("flavor"); bindSeg("dialect"); bindSeg("lineSource");
+function renderSource() {
+  const note = { fixed: "미리 써둔 대사 중에서 골라요. 녹음 파일(voices 폴더)이 있으면 그 목소리로 나와요.",
+    combo: "감탄, 병맛 비유, 호통을 무작위로 섞어 매번 새로운 잔소리를 만들어요. 인터넷이나 비용이 필요 없어요.",
+    ai: "Claude AI가 병맛 잔소리를 계속 새로 써요. 본인의 Claude API 키가 필요하고, 사용량만큼 아주 적은 요금이 나가요." }[settings.lineSource];
+  document.getElementById("sourceNote").textContent = note;
+  document.getElementById("aiBox").hidden = settings.lineSource !== "ai";
+}
+document.querySelector('.seg[data-key="lineSource"]').addEventListener("click", () => { renderSource(); if (settings.lineSource === "ai") refillAI(); });
+document.querySelector('.seg[data-key="dialect"]').addEventListener("click", () => { if (settings.lineSource === "ai") refillAI(true); });
+renderSource();
+const aiKeyEl = document.getElementById("aiKey");
+aiKeyEl.value = getKey();
+aiKeyEl.addEventListener("change", () => { try { localStorage.setItem("posture-halmae-key", aiKeyEl.value.trim()); } catch (e) {} refillAI(true); });
+document.getElementById("aiTest").addEventListener("click", () => {
+  try { localStorage.setItem("posture-halmae-key", aiKeyEl.value.trim()); } catch (e) {}
+  refillAI(true).then(() => { if (totalAI()) { const L = aiLine(pick(["neck", "drop", "tilt", "torso"])); unlockAudio(); showHalmae(L.t, { mood: "angry", sticker: "퍽!" }); sayLine(L); } });
+});
 function bindRange(id, fmt) {
   const el = $(id), out = $(id + "Val"); el.value = settings[id];
   const render = () => out.textContent = fmt(Number(el.value));
@@ -403,14 +624,32 @@ bindRange("delay", v => `${v}초`);
 bindRange("breakMin", v => v === 0 ? "끔" : `${v}분마다`);
 
 // ===== 소리 =====
+// 아이패드·아이폰: 무음 모드일 때는 소리가 나지 않도록 '주변음(ambient)' 모드로 설정 (사파리 16.4+)
+try { if (navigator.audioSession) navigator.audioSession.type = "ambient"; } catch (e) {}
+let speechUnlocked = false;
 function unlockAudio() {
-  try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {}
-  try { if ("speechSynthesis" in window) { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u); } } catch (e) {}
+  try { if (navigator.audioSession) navigator.audioSession.type = "ambient"; } catch (e) {}
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state !== "running") audioCtx.resume();
+    // 아주 짧은 무음을 한 번 재생해 오디오를 깨움 (iOS 필수)
+    const b = audioCtx.createBuffer(1, 1, 22050), src = audioCtx.createBufferSource();
+    src.buffer = b; src.connect(audioCtx.destination); src.start(0);
+  } catch (e) {}
+  try {
+    if ("speechSynthesis" in window && !speechUnlocked) {
+      const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u); speechUnlocked = true;
+    }
+  } catch (e) {}
 }
+// 화면을 누를 때마다 오디오가 잠들어 있으면 다시 깨움
+document.addEventListener("pointerdown", unlockAudio, { passive: true });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && audioCtx && audioCtx.state !== "running") { try { audioCtx.resume(); } catch (e) {} } });
 function loadVoice() { if ("speechSynthesis" in window) koVoice = speechSynthesis.getVoices().find(v => /^ko/i.test(v.lang)) || null; }
 if ("speechSynthesis" in window) { loadVoice(); speechSynthesis.onvoiceschanged = loadVoice; }
 function beep(freq = 880, dur = 0.16, times = 1) {
   if (!audioCtx) return;
+  if (audioCtx.state !== "running") { try { audioCtx.resume(); } catch (e) {} }
   for (let i = 0; i < times; i++) {
     const t = audioCtx.currentTime + i * (dur + 0.08), o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.type = "sine"; o.frequency.value = freq;
@@ -430,10 +669,66 @@ function thud() {
 function speak(text, grandma = true) {
   if (!("speechSynthesis" in window)) return;
   try {
-    speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text); u.lang = "ko-KR"; if (koVoice) u.voice = koVoice;
-    u.rate = grandma ? 1.08 : 1.0; u.pitch = grandma ? 0.6 : 1.05; speechSynthesis.speak(u);
+    u.volume = 1; u.rate = grandma ? 1.08 : 1.0; u.pitch = grandma ? 0.6 : 1.05;
+    speechSynthesis.resume();
+    // 사파리는 cancel 직후 바로 speak 하면 소리가 씹힐 수 있어 잠깐 쉬었다 말함
+    if (speechSynthesis.speaking || speechSynthesis.pending) { speechSynthesis.cancel(); setTimeout(() => speechSynthesis.speak(u), 150); }
+    else speechSynthesis.speak(u);
   } catch (e) {}
+}
+
+// ===== 할매 목소리 =====
+// (1) voices/대사번호.mp3 녹음 파일이 있으면 그걸 재생 (진짜 사람·AI 성우 목소리)
+// (2) 없으면 기기 음성으로 문장을 잘게 나눠 높낮이·빠르기를 바꿔가며 말함
+const clips = {};
+let clipSrc = null;
+function allLineIds() {
+  const ids = [];
+  for (const d in PACKS) for (const kind of ["spicy", "mild", "praise", "break", "calib", "test"]) {
+    const v = PACKS[d][kind];
+    if (Array.isArray(v)) v.forEach((_, i) => ids.push(`${d}-${kind}-${i + 1}`));
+    else for (const pr in v) v[pr].forEach((_, i) => ids.push(`${d}-${kind}-${pr}-${i + 1}`));
+  }
+  return ids;
+}
+async function loadClips() {
+  if (!audioCtx || location.protocol === "file:") return;
+  await Promise.all(allLineIds().map(async id => {
+    try {
+      const r = await fetch(`voices/${id}.mp3`); if (!r.ok) return;
+      clips[id] = await audioCtx.decodeAudioData(await r.arrayBuffer());
+    } catch (e) {}
+  }));
+}
+function playClip(id) {
+  try { clipSrc && clipSrc.stop(); } catch (e) {}
+  if (audioCtx.state !== "running") { try { audioCtx.resume(); } catch (e) {} }
+  const src = audioCtx.createBufferSource(), g = audioCtx.createGain();
+  src.buffer = clips[id]; g.gain.value = 1.0; src.connect(g); g.connect(audioCtx.destination); src.start(0); clipSrc = src;
+}
+const EXCLAIM = /^(아이고|아이구|워메|오매|아따|옳지|됐다|그래|그라제)/;
+function speakHalmae(text) {
+  if (!("speechSynthesis" in window)) return;
+  const parts = text.match(/[^!?.,~]+[!?.,~]*/g) || [text];
+  const go = () => parts.forEach((raw, i) => {
+    const t = raw.trim(); if (!t) return;
+    const u = new SpeechSynthesisUtterance(t); u.lang = "ko-KR"; if (koVoice) u.voice = koVoice; u.volume = 1;
+    const shout = /!$/.test(t), ask = /\?$/.test(t);
+    if (EXCLAIM.test(t)) { u.rate = 0.85; u.pitch = 0.75; }          // "아이고~" 는 느리고 길게
+    else if (shout) { u.rate = 1.22; u.pitch = 0.5 + Math.random() * 0.12; } // 호통은 빠르고 낮게
+    else if (ask) { u.rate = 1.1; u.pitch = 0.78; }                  // "새우가?" 는 끝을 올려서
+    else { u.rate = 1.05; u.pitch = 0.6; }
+    speechSynthesis.speak(u);
+  });
+  try {
+    speechSynthesis.resume();
+    if (speechSynthesis.speaking || speechSynthesis.pending) { speechSynthesis.cancel(); setTimeout(go, 150); } else go();
+  } catch (e) {}
+}
+function sayLine(line) {
+  if (settings.mode !== "voice") return;
+  if (clips[line.id] && audioCtx) playClip(line.id); else speakHalmae(line.t);
 }
 
 // ===== 평소 알림 (조용) =====
@@ -454,7 +749,7 @@ function showHalmae(text, { mood = "angry", slipper = mood === "angry", sticker 
   hStage.innerHTML = `
     ${mood === "angry" ? `<div class="h-sticker h-bang">${sticker}</div><div class="h-sticker h-vein">💢</div>` : ""}
     ${halmaeSVG(mood)}
-    <p class="h-text">${words}</p>
+    <p class="h-text${text.length > 16 ? " long" : ""}">${words}</p>
     ${slipper ? `<div class="h-slipper">🩴</div>` : ""}`;
   halmaeEl.querySelectorAll(".h-hearts").forEach(n => n.remove());
   if (hearts) halmaeEl.insertAdjacentHTML("afterbegin", hearts);
@@ -477,20 +772,29 @@ function alertUser(stage, problem) {
     return;
   }
   if (stage === 2) {
-    const t = pick(LINES.gentle); edgeFlash(1400); showToast(t);
+    const t = pick(GENTLE); edgeFlash(1400); showToast(t);
     if (settings.mode === "voice") speak(t, false); else if (settings.mode === "beep") beep(880, 0.14, 2);
     return;
   }
-  const t = pick(LINES[settings.flavor][problem] || LINES[settings.flavor].drop);
-  if (settings.flavor === "mild") showHalmae(t, { mood: "angry", slipper: false, sticker: "에헴" });
-  else showHalmae(t, { mood: "angry", sticker: STICKERS[problem] || "쾅!" });
-  if (settings.mode === "voice") speak(t, true); else if (settings.mode === "beep") beep(660, 0.2, 3);
+  const L = settings.flavor === "mild" ? pickLine("mild", problem) : spicyLine(problem);
+  if (settings.flavor === "mild") showHalmae(L.t, { mood: "angry", slipper: false, sticker: "에헴" });
+  else showHalmae(L.t, { mood: "angry", sticker: STICKERS[problem] || "쾅!" });
+  if (settings.mode === "voice") sayLine(L); else if (settings.mode === "beep") beep(660, 0.2, 3);
 }
+$("soundTest").addEventListener("click", () => {
+  unlockAudio();
+  beep(880, 0.15, 2);
+  setTimeout(() => { const L = pickLine("test"); if (clips[L.id] && audioCtx) playClip(L.id); else speakHalmae(L.t); }, 600);
+  const hasTTS = "speechSynthesis" in window;
+  $("soundInfo").textContent =
+    `오디오: ${audioCtx ? (audioCtx.state === "running" ? "켜짐" : "대기 중(" + audioCtx.state + ")") : "없음"} / ` +
+    `음성 기능: ${hasTTS ? "있음" : "없음"} / 한국어 목소리: ${koVoice ? koVoice.name : "못 찾음"} / 알림 방식: ${{ voice: "소리와 음성", beep: "소리만", screen: "화면만" }[settings.mode]}`;
+});
 $("testBtn").addEventListener("click", () => {
   unlockAudio();
-  const t = pick(LINES.spicy.drop);
-  showHalmae(t, { mood: "angry", sticker: "퍽!" });
-  if (settings.mode === "voice") speak(t, true);
+  const L = spicyLine(pick(["neck", "drop", "tilt", "torso"]));
+  showHalmae(L.t, { mood: "angry", sticker: "퍽!" });
+  sayLine(L);
 });
 
 // ===== 자세 계산 (3D 좌표, 카메라 각도 무관) =====
@@ -605,8 +909,8 @@ function handle(res, now) {
       clearTimeout(praiseTimer);
       praiseTimer = setTimeout(() => {
         if (state !== "good") return;
-        const t = pick(LINES.praise); showHalmae(t, { mood: "happy", ms: 2600 });
-        if (settings.mode === "voice") speak(t, true);
+        const L = pickLine("praise"); showHalmae(L.t, { mood: "happy", ms: 2600 });
+        sayLine(L);
       }, Math.max(0, lastStage3At + 3000 - now));
     } else if (state === "bad" && alertStage === 2) showToast("좋아요, 바르게 앉았어요");
     state = "good"; badSince = null; alertStage = 0;
@@ -636,8 +940,8 @@ setInterval(() => {
     if (!sittingStart) sittingStart = nowMs;
     if (settings.breakMin > 0 && !breakReminded && nowMs - sittingStart >= settings.breakMin * 60000) {
       breakReminded = true;
-      const t = pick(LINES.break); showHalmae(t, { mood: "angry", slipper: false, sticker: "삐빅!" });
-      if (settings.mode === "voice") speak(t, true); else if (settings.mode === "beep") beep(523, 0.3, 2);
+      const L = pickLine("break"); showHalmae(L.t, { mood: "angry", slipper: false, sticker: "삐빅!" });
+      if (settings.mode === "voice") sayLine(L); else if (settings.mode === "beep") beep(523, 0.3, 2);
       setTimeout(() => { sittingStart = performance.now(); breakReminded = false; }, 5 * 60000);
     }
   }
@@ -677,7 +981,7 @@ startBtn.addEventListener("click", async () => {
     setBadge("오류", "bad");
     showError("AI 모델을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.<br><small>" + (e && e.message ? e.message : e) + "</small>"); return;
   }
-  running = true; lastPresentAt = performance.now(); requestWakeLock();
+  running = true; lastPresentAt = performance.now(); requestWakeLock(); loadClips(); if (settings.lineSource === "ai") refillAI();
   startBtn.hidden = true; calibBtn.hidden = false; stopBtn.hidden = false;
   setBadge("바른 자세를 등록해 주세요"); $("levelState").textContent = "등록 전";
   requestAnimationFrame(loop);
@@ -698,8 +1002,8 @@ calibBtn.addEventListener("click", () => {
       const avg = {}; for (const k of ["neck", "gap", "tilt", "torso"]) avg[k] = calibSamples.reduce((s, x) => s + x[k], 0) / calibSamples.length;
       base = avg; smooth = { ...avg }; bad = false; badSince = null; alertStage = 0;
       calibBtn.textContent = "다시 등록"; calibBtn.className = "btn";
-      const t = "이 자세 기억했다! 이제 할미가 지켜본다";
-      showHalmae(t, { mood: "happy", ms: 2800 }); if (settings.mode === "voice") speak(t, true);
+      const L = pickLine("calib");
+      showHalmae(L.t, { mood: "happy", ms: 3200 }); sayLine(L);
     }, 3000);
   };
   tick();
@@ -710,10 +1014,8 @@ function buildReport() {
   let top = null, topN = 0; for (const k in stats.problems) if (stats.problems[k] > topN) { topN = stats.problems[k]; top = k; }
   const good = stats.total && pct >= 85;
   $("reportAvatar").innerHTML = halmaeSVG(good || !stats.total ? "happy" : "angry");
-  $("reportQuote").textContent = !stats.total ? "오늘은 기록이 거의 없구나. 다음엔 좀 앉아 있어 보거라."
-    : pct >= 85 ? "아이고 우리 강아지, 오늘 자세 아주 훌륭했다!"
-    : pct >= 60 ? "그럭저럭 했다만 할미 눈엔 아직 멀었다."
-    : "이놈아, 오늘 자세가 이게 뭐냐! 내일은 더 매섭게 본다.";
+  const R = PACKS[PACKS[settings.dialect] ? settings.dialect : "gs"].report;
+  $("reportQuote").textContent = !stats.total ? R.none : pct >= 85 ? R.great : pct >= 60 ? R.ok : R.bad;
   $("reportList").innerHTML =
     `<li><span>앉아 있던 시간</span><b>${fmtMin(stats.total)}</b></li>` +
     `<li><span>바른 자세 비율</span><b>${stats.total ? pct + "%" : "기록 없음"}</b></li>` +
@@ -732,7 +1034,7 @@ $("resumeBtn").addEventListener("click", () => location.reload());
 window.addEventListener("resize", renderTimeline);
 
 // 디자인 확인용: 주소 끝에 #demo 를 붙이면 화면 상태를 미리 볼 수 있어요
-if (location.hash === "#demo-angry") showHalmae("허리 펴! 새우냐?", { mood: "angry", sticker: "퍽!", sound: false, ms: 999999 });
+if (location.hash === "#demo-angry") showHalmae("허리 펴라 이 문디야! 니 새우가? 새우냐꼬!", { mood: "angry", sticker: "퍽!", sound: false, ms: 999999 });
 if (location.hash === "#demo-happy") showHalmae("옳지~ 우리 강아지!", { mood: "happy", sound: false, ms: 999999 });
 if (location.hash === "#demo") {
   base = {}; state = "good"; stats = { total: 2710, good: 2250, alerts: 6, problems: { neck: 300, drop: 120, tilt: 40, torso: 0 } };
